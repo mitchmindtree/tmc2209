@@ -1,0 +1,54 @@
+name: tmc2209
+on: [push, pull_request]
+jobs:
+  # Check for standard formatting.
+  rustfmt-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        components: rustfmt
+    - name: Run rustfmt
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: -p tmc2209 -- --check
+
+  # Build and test the crate.
+  cargo-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: cargo test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: -p tmc2209 --verbose
+
+  # Check the docs build.
+  cargo-doc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: cargo doc
+      uses: actions-rs/cargo@v1
+      with:
+        command: doc
+        args: -p tmc2209 --verbose
