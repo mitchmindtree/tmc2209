@@ -1,0 +1,15 @@
+[package]
+name = "teensy4"
+version = "0.1.0"
+authors = ["mitchmindtree <mitchell.nordine@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+cortex-m-rtic = "0.5.3"
+embedded-hal = "0.2.4"
+heapless = "0.5.5"
+imxrt-uart-log = "0.1.0"
+log = "0.4.8"
+panic-halt = "0.2.0"
+tmc2209 = { path = "../../tmc2209" }
+teensy4-bsp = { git = "https://github.com/mciantyre/teensy4-rs", branch = "master", default-features = false, features = ["rtic"] }
