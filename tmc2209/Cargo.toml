@@ -1,0 +1,12 @@
+[package]
+name = "tmc2209"
+version = "0.1.0"
+authors = ["mitchmindtree <mitchell.nordine@gmail.com>"]
+edition = "2018"
+description = "An implementation for the TMC2209 stepper motor driver by Trinamic."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bitfield = "0.13.2"
+embedded-hal = "0.2.4"
