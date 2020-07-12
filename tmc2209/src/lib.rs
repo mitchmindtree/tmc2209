@@ -75,11 +75,11 @@ impl Reader {
                     Some(&SYNC_AND_RESERVED) => {
                         self.response_data[self.index] = SYNC_AND_RESERVED;
                         self.index += 1;
-                    },
+                    }
                     None => {
                         let read_bytes = start_len - bytes.len();
-                        return (read_bytes, None)
-                    },
+                        return (read_bytes, None);
+                    }
                     _ => (),
                 };
                 bytes = &bytes[1..];
@@ -95,7 +95,7 @@ impl Reader {
                     }
                     None => {
                         let read_bytes = start_len - bytes.len();
-                        return (read_bytes, None)
+                        return (read_bytes, None);
                     }
                     _ => {
                         self.index = 0;
@@ -107,7 +107,10 @@ impl Reader {
             // Copy the remaining data.
             let remaining_data = &mut self.response_data[self.index..];
             let to_copy = core::cmp::min(remaining_data.len(), bytes.len());
-            remaining_data.iter_mut().zip(bytes).for_each(|(d, b)| *d = *b);
+            remaining_data
+                .iter_mut()
+                .zip(bytes)
+                .for_each(|(d, b)| *d = *b);
             self.index += to_copy;
             bytes = &bytes[to_copy..];
 
@@ -222,7 +225,16 @@ impl WriteRequest {
         const WRITE: u8 = 0b10000000;
         let reg_addr_rw = R::ADDRESS as u8 | WRITE;
         let [b0, b1, b2, b3] = u32_to_bytes(register.into());
-        let mut bytes = [SYNC_AND_RESERVED, slave_addr, reg_addr_rw, b0, b1, b2, b3, 0u8];
+        let mut bytes = [
+            SYNC_AND_RESERVED,
+            slave_addr,
+            reg_addr_rw,
+            b0,
+            b1,
+            b2,
+            b3,
+            0u8,
+        ];
         let crc_ix = bytes.len() - 1;
         bytes[crc_ix] = crc(&bytes[..crc_ix]);
         Self(bytes)
