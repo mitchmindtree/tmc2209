@@ -234,11 +234,8 @@ bitfield! {
     pub tbl0, set_tbl0: 15;
     pub tbl1, set_tbl1: 16;
     pub vsense, set_vsense: 17;
-    pub mres0, set_mres0: 24;
-    pub mres1, set_mres1: 25;
-    pub mres2, set_mres2: 26;
-    pub mres3, set_mres3: 27;
-    pub intpol, set_intpol: 28;
+    pub mres, set_mres: 27, 24;
+    pub ntpol, set_intpol: 28;
     pub dedge, set_dedge: 29;
     pub diss2g, set_diss2g: 30;
     pub diss2vs, set_diss2vs: 31;
