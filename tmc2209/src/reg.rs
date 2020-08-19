@@ -345,7 +345,7 @@ macro_rules! impl_rw {
 macro_rules! impl_registers {
     ($($RW:ident $addr:literal $T:ident,)*) => {
         #[repr(u8)]
-        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
         #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
         pub enum Address {
             $(
