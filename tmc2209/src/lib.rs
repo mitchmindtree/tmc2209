@@ -183,6 +183,13 @@ impl ReadResponse {
         reg::Address::try_from(self.0[Self::REG_ADDR_IX])
     }
 
+    /// Produce the register state stored within the resonse.
+    ///
+    /// The specific state is determined by first checking the register address.
+    pub fn reg_state(&self) -> Result<reg::State, reg::UnknownAddress> {
+        self.reg_addr().map(|addr| reg::State::from_addr_and_data(addr, self.data_u32()))
+    }
+
     /// The data slice.
     pub fn data(&self) -> &[u8] {
         &self.0[Self::DATA_RANGE]

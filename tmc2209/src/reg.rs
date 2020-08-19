@@ -25,6 +25,10 @@ pub trait WritableRegister: Register + Into<u32> {}
 #[derive(Debug)]
 pub struct UnknownAddress;
 
+/// An error indicating an unexpected `State`.
+#[derive(Debug)]
+pub struct UnexpectedAddress;
+
 // Register Declarations
 // --------------------------------------------------------
 
@@ -344,12 +348,22 @@ macro_rules! impl_rw {
 /// A macro for generating the `Address` enum along with the `Register` trait implementations.
 macro_rules! impl_registers {
     ($($RW:ident $addr:literal $T:ident,)*) => {
+        /// The address
         #[repr(u8)]
         #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
         #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
         pub enum Address {
             $(
                 $T = $addr,
+            )*
+        }
+
+        /// A dynamic representation of the register state.
+        #[derive(Clone, Copy, Debug)]
+        #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+        pub enum State {
+            $(
+                $T($T),
             )*
         }
 
@@ -372,6 +386,17 @@ macro_rules! impl_registers {
             }
         }
 
+        impl State {
+            /// Construct a register state from its address and data represented as a `u32`.
+            pub fn from_addr_and_data(addr: Address, data: u32) -> State {
+                match addr {
+                    $(
+                        Address::$T => State::$T(<_>::from(data)),
+                    )*
+                }
+            }
+        }
+
         $(
             impl Register for $T {
                 const ADDRESS: Address = Address::$T;
@@ -386,6 +411,22 @@ macro_rules! impl_registers {
             impl From<u32> for $T {
                 fn from(u: u32) -> $T {
                     $T(u)
+                }
+            }
+
+            impl Into<State> for $T {
+                fn into(self) -> State {
+                    State::$T(self)
+                }
+            }
+
+            impl core::convert::TryFrom<State> for $T {
+                type Error = UnexpectedAddress;
+                fn try_from(state: State) -> Result<Self, Self::Error> {
+                    match state {
+                        State::$T(s) => Ok(s),
+                        _ => Err(UnexpectedAddress),
+                    }
                 }
             }
         )*
