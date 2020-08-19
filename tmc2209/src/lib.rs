@@ -141,8 +141,8 @@ impl ReadRequest {
         Self::from_addr(slave_addr, R::ADDRESS)
     }
 
-    // Should this be exposed? Doesn't protect against specifying a non-readable register.
-    fn from_addr(slave_addr: u8, register: reg::Address) -> Self {
+    /// Should this be exposed? Doesn't protect against specifying a non-readable register.
+    pub fn from_addr(slave_addr: u8, register: reg::Address) -> Self {
         const READ: u8 = 0b00000000;
         let reg_addr_rw = (register as u8 | READ) & 0x7F;
         let mut bytes = [SYNC_AND_RESERVED, slave_addr, reg_addr_rw, 0u8];
