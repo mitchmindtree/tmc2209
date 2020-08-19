@@ -29,16 +29,19 @@ type WriteRequestData = [u8; WriteRequest::LEN_BYTES];
 /// The read access request datagram.
 #[repr(C)]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ReadRequest(ReadRequestData);
 
 /// The read access response datagram.
 #[repr(C)]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ReadResponse(ReadResponseData);
 
 /// The write access request datagram.
 #[repr(C)]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WriteRequest(WriteRequestData);
 
 /// The first four bits for synchronisation, the last four are zeroed reserved bytes.

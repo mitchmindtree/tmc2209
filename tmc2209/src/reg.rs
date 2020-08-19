@@ -30,6 +30,7 @@ pub struct UnknownAddress;
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct GCONF(u32);
     impl Debug;
     u16;
@@ -47,6 +48,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct GSTAT(u32);
     impl Debug;
     u8;
@@ -56,10 +58,12 @@ bitfield! {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IFCNT(pub u32);
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct SLAVECONF(u32);
     impl Debug;
     u8;
@@ -68,6 +72,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct OTP_PROG(u32);
     impl Debug;
     u16;
@@ -78,6 +83,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct OTP_READ(u32);
     impl Debug;
     u8;
@@ -98,6 +104,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct IOIN(u32);
     impl Debug;
     u16;
@@ -115,6 +122,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct FACTORY_CONF(u32);
     impl Debug;
     u8;
@@ -124,6 +132,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct IHOLD_IRUN(u32);
     impl Debug;
     u8;
@@ -133,10 +142,12 @@ bitfield! {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TPOWERDOWN(pub u32);
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct TSTEP(u32);
     impl Debug;
     u32;
@@ -145,6 +156,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct TPWMTHRS(u32);
     impl Debug;
     u32;
@@ -153,6 +165,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct VACTUAL(u32);
     impl Debug;
     i32;
@@ -161,6 +174,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct TCOOLTHRS(u32);
     impl Debug;
     u32;
@@ -168,10 +182,12 @@ bitfield! {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SGTHRS(pub u32);
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct SG_RESULT(u32);
     impl Debug;
     u16;
@@ -180,6 +196,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct COOLCONF(u32);
     impl Debug;
     u16;
@@ -200,6 +217,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct MSCNT(u32);
     impl Debug;
     u16;
@@ -208,6 +226,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct MSCURACT(u32);
     impl Debug;
     u16;
@@ -217,6 +236,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct CHOPCONF(u32);
     impl Debug;
     u32;
@@ -243,6 +263,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct DRV_STATUS(u32);
     impl Debug;
     u32;
@@ -265,6 +286,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct PWMCONF(u32);
     impl Debug;
     u8;
@@ -282,6 +304,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct PWM_SCALE(u32);
     impl Debug;
     u8;
@@ -292,6 +315,7 @@ bitfield! {
 
 bitfield! {
     #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     pub struct PWM_AUTO(u32);
     impl Debug;
     u8;
@@ -322,6 +346,7 @@ macro_rules! impl_registers {
     ($($RW:ident $addr:literal $T:ident,)*) => {
         #[repr(u8)]
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
         pub enum Address {
             $(
                 $T = $addr,

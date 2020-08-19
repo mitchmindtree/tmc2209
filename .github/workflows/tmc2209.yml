@@ -35,6 +35,9 @@ jobs:
       with:
         command: test
         args: -p tmc2209 --verbose
+    - name: cargo test features
+      run: cd tmc2209 && cargo test --features "serde" && cd ..
+
 
   # Check the docs build.
   cargo-doc:
