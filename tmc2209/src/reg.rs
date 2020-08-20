@@ -395,6 +395,15 @@ macro_rules! impl_registers {
                     )*
                 }
             }
+
+            /// The address of the register with which this state is associated.
+            pub fn addr(&self) -> Address {
+                match *self {
+                    $(
+                        State::$T(_) => Address::$T,
+                    )*
+                }
+            }
         }
 
         $(
