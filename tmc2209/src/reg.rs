@@ -345,6 +345,30 @@ macro_rules! impl_rw {
     };
 }
 
+macro_rules! is_readable {
+    (RW) => {
+        true
+    };
+    (R) => {
+        true
+    };
+    (W) => {
+        false
+    };
+}
+
+macro_rules! is_writable {
+    (RW) => {
+        true
+    };
+    (R) => {
+        false
+    };
+    (W) => {
+        true
+    };
+}
+
 /// A macro for generating the `Address` enum along with the `Register` trait implementations.
 macro_rules! impl_registers {
     ($($RW:ident $addr:literal $T:ident,)*) => {
@@ -383,6 +407,33 @@ macro_rules! impl_registers {
                     _ => return Err(UnknownAddress),
                 };
                 Ok(reg)
+            }
+        }
+
+        impl Address {
+            /// All register addresses.
+            pub const ALL: &'static [Self] = &[
+                $(
+                    Self::$T,
+                )*
+            ];
+
+            /// Whether or not we can send a read request to the register address.
+            pub fn readable(&self) -> bool {
+                match *self {
+                    $(
+                        Self::$T => is_readable!($RW),
+                    )*
+                }
+            }
+
+            /// Whether or not we can send a write request to the register address.
+            pub fn writable(&self) -> bool {
+                match *self {
+                    $(
+                        Self::$T => is_writable!($RW),
+                    )*
+                }
             }
         }
 
