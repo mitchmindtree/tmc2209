@@ -187,7 +187,8 @@ impl ReadResponse {
     ///
     /// The specific state is determined by first checking the register address.
     pub fn reg_state(&self) -> Result<reg::State, reg::UnknownAddress> {
-        self.reg_addr().map(|addr| reg::State::from_addr_and_data(addr, self.data_u32()))
+        self.reg_addr()
+            .map(|addr| reg::State::from_addr_and_data(addr, self.data_u32()))
     }
 
     /// The data slice.
