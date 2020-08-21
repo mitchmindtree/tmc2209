@@ -474,9 +474,9 @@ macro_rules! impl_registers {
                 }
             }
 
-            impl Into<State> for $T {
-                fn into(self) -> State {
-                    State::$T(self)
+            impl From<$T> for State {
+                fn from(r: $T) -> Self {
+                    State::$T(r)
                 }
             }
 
