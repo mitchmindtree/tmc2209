@@ -22,6 +22,19 @@ pub struct Reader {
     response_data: ReadResponseData,
 }
 
+/// For observing the current state of the reader.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ReaderAwaiting {
+    Sync,
+    MasterAddr,
+    RegAddr,
+    DataByte0,
+    DataByte1,
+    DataByte2,
+    DataByte3,
+    Crc,
+}
+
 type ReadRequestData = [u8; ReadRequest::LEN_BYTES];
 type ReadResponseData = [u8; ReadResponse::LEN_BYTES];
 type WriteRequestData = [u8; WriteRequest::LEN_BYTES];
@@ -73,7 +86,7 @@ impl Reader {
         let start_len = bytes.len();
         loop {
             // If we're at the first index, we're looking for the sync byte.
-            while self.index == 0 {
+            while self.index == ReadResponse::SYNC_AND_RESERVED_IX {
                 match bytes.get(0) {
                     Some(&SYNC_AND_RESERVED) => {
                         self.response_data[self.index] = SYNC_AND_RESERVED;
@@ -101,7 +114,7 @@ impl Reader {
                         return (read_bytes, None);
                     }
                     _ => {
-                        self.index = 0;
+                        self.index = ReadResponse::SYNC_AND_RESERVED_IX;
                         continue;
                     }
                 }
@@ -125,6 +138,23 @@ impl Reader {
             } else {
                 (read_bytes, None)
             };
+        }
+    }
+
+    /// Which byte the reader is currently awaiting.
+    ///
+    /// This method is purely to assist with debugging UART communication issues.
+    pub fn awaiting(&self) -> ReaderAwaiting {
+        match self.index {
+            ReadResponse::SYNC_AND_RESERVED_IX => ReaderAwaiting::Sync,
+            ReadResponse::MASTER_ADDR_IX => ReaderAwaiting::MasterAddr,
+            ReadResponse::REG_ADDR_IX => ReaderAwaiting::RegAddr,
+            3 => ReaderAwaiting::DataByte0,
+            4 => ReaderAwaiting::DataByte1,
+            5 => ReaderAwaiting::DataByte2,
+            6 => ReaderAwaiting::DataByte3,
+            ReadResponse::CRC_IX => ReaderAwaiting::Crc,
+            _ => unreachable!(),
         }
     }
 }
@@ -160,6 +190,8 @@ impl ReadRequest {
 impl ReadResponse {
     /// The length of the message in bytes.
     pub const LEN_BYTES: usize = 8;
+    /// The first byte is the synchronisation byte.
+    pub const SYNC_AND_RESERVED_IX: usize = 0;
     /// The index of the master address byte.
     pub const MASTER_ADDR_IX: usize = 1;
     /// The index of the register address.
