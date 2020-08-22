@@ -24,6 +24,7 @@ pub struct Reader {
 
 /// For observing the current state of the reader.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub enum ReaderAwaiting {
     Sync,
     MasterAddr,
@@ -43,18 +44,21 @@ type WriteRequestData = [u8; WriteRequest::LEN_BYTES];
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct ReadRequest(ReadRequestData);
 
 /// The read access response datagram.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct ReadResponse(ReadResponseData);
 
 /// The write access request datagram.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct WriteRequest(WriteRequestData);
 
 /// The first four bits for synchronisation, the last four are zeroed reserved bytes.

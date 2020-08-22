@@ -14,3 +14,4 @@ edition = "2018"
 bitfield = "0.13.2"
 embedded-hal = "0.2.4"
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
+ufmt = { version = "0.1.0", optional = true }
