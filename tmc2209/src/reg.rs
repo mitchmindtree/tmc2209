@@ -11,7 +11,7 @@
 // --------------------------------------------------------
 
 /// Implemented for all register types.
-pub trait Register {
+pub trait Register: Into<State> {
     const ADDRESS: Address;
 }
 
@@ -461,6 +461,16 @@ macro_rules! impl_registers {
                 match *self {
                     $(
                         State::$T(_) => Address::$T,
+                    )*
+                }
+            }
+        }
+
+        impl Into<u32> for State {
+            fn into(self) -> u32 {
+                match self {
+                    $(
+                        State::$T(r) => r.into(),
                     )*
                 }
             }

@@ -269,9 +269,18 @@ impl WriteRequest {
     where
         R: reg::WritableRegister,
     {
+        Self::from_state(slave_addr, register.into())
+    }
+
+    /// A dynamic alternative to `new`, for when the exact register begin written to is not known
+    /// at compile time.
+    ///
+    /// TODO: Return a `Result` where an `Err` is returned if a non-write-able register was
+    /// specified.
+    pub fn from_state(slave_addr: u8, state: reg::State) -> Self {
         const WRITE: u8 = 0b10000000;
-        let reg_addr_rw = R::ADDRESS as u8 | WRITE;
-        let [b0, b1, b2, b3] = u32_to_bytes(register.into());
+        let reg_addr_rw = state.addr() as u8 | WRITE;
+        let [b0, b1, b2, b3] = u32_to_bytes(state.into());
         let mut bytes = [
             SYNC_AND_RESERVED,
             slave_addr,
