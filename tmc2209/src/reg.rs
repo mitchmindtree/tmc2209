@@ -223,18 +223,10 @@ bitfield! {
     pub struct COOLCONF(u32);
     impl Debug;
     u16;
-    pub semin0, set_semin0: 0;
-    pub semin1, set_semin1: 1;
-    pub semin2, set_semin2: 2;
-    pub semin3, set_semin3: 3;
-    pub seup0, set_seup0: 5;
-    pub seup1, set_seup1: 6;
-    pub semax0, set_semax0: 8;
-    pub semax1, set_semax1: 9;
-    pub semax2, set_semax2: 10;
-    pub semax3, set_semax3: 11;
-    pub sedn0, set_sedn0: 13;
-    pub sedn1, set_sedn1: 14;
+    pub semin, set_semin: 3, 0;
+    pub seup, set_seup: 6, 5;
+    pub semax, set_semax: 11, 8;
+    pub sedn, set_sedn: 14, 13;
     pub seimin, set_seimin: 15;
 }
 
@@ -266,19 +258,10 @@ bitfield! {
     pub struct CHOPCONF(u32);
     impl Debug;
     u32;
-    pub toff0, set_toff0: 0;
-    pub toff1, set_toff1: 1;
-    pub toff2, set_toff2: 2;
-    pub toff3, set_toff3: 3;
-    pub hstrt0, set_hstrt0: 4;
-    pub hstrt1, set_hstrt1: 5;
-    pub hstrt2, set_hstrt2: 6;
-    pub hend0, set_hend0: 7;
-    pub hend1, set_hend1: 8;
-    pub hend2, set_hend2: 9;
-    pub hend3, set_hend3: 0;
-    pub tbl0, set_tbl0: 15;
-    pub tbl1, set_tbl1: 16;
+    pub toff, set_toff: 3, 0;
+    pub hstrt, set_hstrt: 6, 4;
+    pub hend, set_hend: 10, 7;
+    pub tbl, set_tbl: 16, 15;
     pub vsense, set_vsense: 17;
     pub mres, set_mres: 27, 24;
     pub ntpol, set_intpol: 28;
@@ -320,12 +303,10 @@ bitfield! {
     u8;
     pub pwm_ofs, set_pwm_ofs: 7, 0;
     pub pwm_grad, set_pwm_grad: 15, 8;
-    pub pwm_freq0, set_pwm_freq0: 16;
-    pub pwm_freq1, set_pwm_freq1: 17;
+    pub pwm_freq, set_pwm_freq: 17, 16;
     pub pwm_autoscale, set_pwm_autoscale: 18;
     pub pwm_autograd, set_pwm_autograd: 19;
-    pub freewheel0, set_freewheel0: 20;
-    pub freewheel1, set_freewheel1: 21;
+    pub freewheel, set_freewheel: 21, 20;
     pub pwm_reg, set_pwm_reg: 27, 24;
     pub pwm_lim, set_pwm_lim: 31, 28;
 }
