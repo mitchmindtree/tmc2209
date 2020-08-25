@@ -523,6 +523,40 @@ macro_rules! impl_registers {
                     )*
                 }
             }
+
+            /// Attempt to retrieve a reference to a register of type `R` from the dynamic register
+            /// `State` representation.
+            ///
+            /// Returns an `Err` if the register type does not match.
+            pub fn reg<R>(&self) -> Result<&R, UnexpectedAddress>
+            where
+                R: 'static + Register,
+            {
+                match *self {
+                    $(
+                        Self::$T(ref r) => (r as &dyn core::any::Any)
+                            .downcast_ref()
+                            .ok_or(UnexpectedAddress),
+                    )*
+                }
+            }
+
+            /// Attempt to retrieve a mutable reference to a register of type `R` from the dynamic
+            /// register `State` representation.
+            ///
+            /// Returns an `Err` if the register type does not match.
+            pub fn reg_mut<R>(&mut self) -> Result<&mut R, UnexpectedAddress>
+            where
+                R: 'static + Register,
+            {
+                match *self {
+                    $(
+                        Self::$T(ref mut r) => (r as &mut dyn core::any::Any)
+                            .downcast_mut()
+                            .ok_or(UnexpectedAddress),
+                    )*
+                }
+            }
         }
 
         impl Into<u32> for State {
