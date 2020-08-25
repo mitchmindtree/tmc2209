@@ -400,6 +400,11 @@ macro_rules! impl_registers {
             )*
         }
 
+        /// The total number of documented registers in the TMC2209.
+        ///
+        /// Useful for statically allocated register maps, etc.
+        pub const COUNT: usize = 0 $(+ { let _ = Address::$T; 1 })*;
+
         impl Into<u8> for Address {
             fn into(self) -> u8 {
                 self as u8
@@ -448,7 +453,7 @@ macro_rules! impl_registers {
 
         impl State {
             /// Construct a register state from its address and data represented as a `u32`.
-            pub fn from_addr_and_data(addr: Address, data: u32) -> State {
+            pub fn from_addr_and_data(addr: Address, data: u32) -> Self {
                 match addr {
                     $(
                         Address::$T => State::$T(<_>::from(data)),
