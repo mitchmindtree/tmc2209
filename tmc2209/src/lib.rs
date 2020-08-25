@@ -43,6 +43,7 @@ type WriteRequestData = [u8; WriteRequest::LEN_BYTES];
 /// The read access request datagram.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct ReadRequest(ReadRequestData);
@@ -50,6 +51,7 @@ pub struct ReadRequest(ReadRequestData);
 /// The read access response datagram.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct ReadResponse(ReadResponseData);
@@ -57,6 +59,7 @@ pub struct ReadResponse(ReadResponseData);
 /// The write access request datagram.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct WriteRequest(WriteRequestData);
