@@ -665,6 +665,19 @@ macro_rules! impl_registers {
             }
         }
 
+        impl core::ops::Index<Address> for Map {
+            type Output = State;
+            fn index(&self, addr: Address) -> &Self::Output {
+                self.state(addr)
+            }
+        }
+
+        impl core::ops::IndexMut<Address> for Map {
+            fn index_mut(&mut self, addr: Address) -> &mut Self::Output {
+                self.state_mut(addr)
+            }
+        }
+
         impl Into<u8> for Address {
             fn into(self) -> u8 {
                 self as u8
