@@ -261,6 +261,11 @@ impl ReadResponse {
     pub fn crc_is_valid(&self) -> bool {
         self.0[Self::CRC_IX] == crc(&self.0[..Self::CRC_IX])
     }
+
+    /// The inner slice of bytes.
+    pub fn bytes(&self) -> &[u8; Self::LEN_BYTES] {
+        &self.0
+    }
 }
 
 impl WriteRequest {
