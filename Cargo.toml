@@ -1,18 +1,6 @@
 [workspace]
 members = [
     "tmc2209",
-    "examples/teensy4",
+    # TODO: Patches no longer resolve - needs an update.
+    # "examples/teensy4",
 ]
-
-# Patch `cortex-m-rt` for reasons described here:
-# https://github.com/mciantyre/teensy4-rs#runtime
-[patch.crates-io.cortex-m-rt]
-git = "https://github.com/mciantyre/teensy4-rs"
-branch = "master"
-
-# Patch `imxrt-hal` so that we may access the `hal::Peripherals::steal`
-# constructor. This patch should be removed once a new version of
-# `imxrt-hal` is published with the new constructor.
-[patch.crates-io.imxrt-hal]
-git = "https://github.com/imxrt-rs/imxrt-rs"
-branch = "master"

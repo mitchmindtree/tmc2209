@@ -22,23 +22,46 @@ pub struct Reader {
     response_data: ReadResponseData,
 }
 
+/// For observing the current state of the reader.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+pub enum ReaderAwaiting {
+    Sync,
+    MasterAddr,
+    RegAddr,
+    DataByte0,
+    DataByte1,
+    DataByte2,
+    DataByte3,
+    Crc,
+}
+
 type ReadRequestData = [u8; ReadRequest::LEN_BYTES];
 type ReadResponseData = [u8; ReadResponse::LEN_BYTES];
 type WriteRequestData = [u8; WriteRequest::LEN_BYTES];
 
 /// The read access request datagram.
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct ReadRequest(ReadRequestData);
 
 /// The read access response datagram.
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct ReadResponse(ReadResponseData);
 
 /// The write access request datagram.
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct WriteRequest(WriteRequestData);
 
 /// The first four bits for synchronisation, the last four are zeroed reserved bytes.
@@ -70,7 +93,7 @@ impl Reader {
         let start_len = bytes.len();
         loop {
             // If we're at the first index, we're looking for the sync byte.
-            while self.index == 0 {
+            while self.index == ReadResponse::SYNC_AND_RESERVED_IX {
                 match bytes.get(0) {
                     Some(&SYNC_AND_RESERVED) => {
                         self.response_data[self.index] = SYNC_AND_RESERVED;
@@ -98,7 +121,7 @@ impl Reader {
                         return (read_bytes, None);
                     }
                     _ => {
-                        self.index = 0;
+                        self.index = ReadResponse::SYNC_AND_RESERVED_IX;
                         continue;
                     }
                 }
@@ -124,6 +147,23 @@ impl Reader {
             };
         }
     }
+
+    /// Which byte the reader is currently awaiting.
+    ///
+    /// This method is purely to assist with debugging UART communication issues.
+    pub fn awaiting(&self) -> ReaderAwaiting {
+        match self.index {
+            ReadResponse::SYNC_AND_RESERVED_IX => ReaderAwaiting::Sync,
+            ReadResponse::MASTER_ADDR_IX => ReaderAwaiting::MasterAddr,
+            ReadResponse::REG_ADDR_IX => ReaderAwaiting::RegAddr,
+            3 => ReaderAwaiting::DataByte0,
+            4 => ReaderAwaiting::DataByte1,
+            5 => ReaderAwaiting::DataByte2,
+            6 => ReaderAwaiting::DataByte3,
+            ReadResponse::CRC_IX => ReaderAwaiting::Crc,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl ReadRequest {
@@ -138,8 +178,8 @@ impl ReadRequest {
         Self::from_addr(slave_addr, R::ADDRESS)
     }
 
-    // Should this be exposed? Doesn't protect against specifying a non-readable register.
-    fn from_addr(slave_addr: u8, register: reg::Address) -> Self {
+    /// Should this be exposed? Doesn't protect against specifying a non-readable register.
+    pub fn from_addr(slave_addr: u8, register: reg::Address) -> Self {
         const READ: u8 = 0b00000000;
         let reg_addr_rw = (register as u8 | READ) & 0x7F;
         let mut bytes = [SYNC_AND_RESERVED, slave_addr, reg_addr_rw, 0u8];
@@ -157,6 +197,8 @@ impl ReadRequest {
 impl ReadResponse {
     /// The length of the message in bytes.
     pub const LEN_BYTES: usize = 8;
+    /// The first byte is the synchronisation byte.
+    pub const SYNC_AND_RESERVED_IX: usize = 0;
     /// The index of the master address byte.
     pub const MASTER_ADDR_IX: usize = 1;
     /// The index of the register address.
@@ -178,6 +220,14 @@ impl ReadResponse {
     /// Returns an `Err` if the value does not correspond with any known register.
     pub fn reg_addr(&self) -> Result<reg::Address, reg::UnknownAddress> {
         reg::Address::try_from(self.0[Self::REG_ADDR_IX])
+    }
+
+    /// Produce the register state stored within the resonse.
+    ///
+    /// The specific state is determined by first checking the register address.
+    pub fn reg_state(&self) -> Result<reg::State, reg::UnknownAddress> {
+        self.reg_addr()
+            .map(|addr| reg::State::from_addr_and_data(addr, self.data_u32()))
     }
 
     /// The data slice.
@@ -211,6 +261,11 @@ impl ReadResponse {
     pub fn crc_is_valid(&self) -> bool {
         self.0[Self::CRC_IX] == crc(&self.0[..Self::CRC_IX])
     }
+
+    /// The inner slice of bytes.
+    pub fn bytes(&self) -> &[u8; Self::LEN_BYTES] {
+        &self.0
+    }
 }
 
 impl WriteRequest {
@@ -222,9 +277,18 @@ impl WriteRequest {
     where
         R: reg::WritableRegister,
     {
+        Self::from_state(slave_addr, register.into())
+    }
+
+    /// A dynamic alternative to `new`, for when the exact register begin written to is not known
+    /// at compile time.
+    ///
+    /// TODO: Return a `Result` where an `Err` is returned if a non-write-able register was
+    /// specified.
+    pub fn from_state(slave_addr: u8, state: reg::State) -> Self {
         const WRITE: u8 = 0b10000000;
-        let reg_addr_rw = R::ADDRESS as u8 | WRITE;
-        let [b0, b1, b2, b3] = u32_to_bytes(register.into());
+        let reg_addr_rw = state.addr() as u8 | WRITE;
+        let [b0, b1, b2, b3] = u32_to_bytes(state.into());
         let mut bytes = [
             SYNC_AND_RESERVED,
             slave_addr,

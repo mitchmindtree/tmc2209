@@ -35,6 +35,8 @@ jobs:
       with:
         command: test
         args: -p tmc2209 --verbose
+    - name: cargo test features
+      run: cd tmc2209 && cargo test --features "serde" && cd ..
 
   # Check the docs build.
   cargo-doc:
@@ -52,3 +54,21 @@ jobs:
       with:
         command: doc
         args: -p tmc2209 --verbose
+
+  # Auto-publish to crates.io.
+  cargo-publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    env:
+      CRATESIO_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Cargo publish tmc2209
+      continue-on-error: true
+      run: cargo publish --token $CRATESIO_TOKEN --manifest-path tmc2209/Cargo.toml

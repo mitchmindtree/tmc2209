@@ -11,7 +11,10 @@
 // --------------------------------------------------------
 
 /// Implemented for all register types.
-pub trait Register {
+///
+/// NOTE: This should not be implemented for custom types. If the user attempts to request a custom
+/// register type from the register `Map`, the method call will hang indefinitely.
+pub trait Register: Into<State> {
     const ADDRESS: Address;
 }
 
@@ -23,13 +26,22 @@ pub trait WritableRegister: Register + Into<u32> {}
 
 /// An error that might occur in the case that an address could not be parsed.
 #[derive(Debug)]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct UnknownAddress;
+
+/// An error indicating an unexpected `State`.
+#[derive(Debug)]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+pub struct UnexpectedAddress;
 
 // Register Declarations
 // --------------------------------------------------------
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct GCONF(u32);
     impl Debug;
     u16;
@@ -46,7 +58,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct GSTAT(u32);
     impl Debug;
     u8;
@@ -55,11 +70,17 @@ bitfield! {
     pub uv_cp, _: 2;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct IFCNT(pub u32);
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct SLAVECONF(u32);
     impl Debug;
     u8;
@@ -67,7 +88,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct OTP_PROG(u32);
     impl Debug;
     u16;
@@ -77,7 +101,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct OTP_READ(u32);
     impl Debug;
     u8;
@@ -97,7 +124,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct IOIN(u32);
     impl Debug;
     u16;
@@ -114,7 +144,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct FACTORY_CONF(u32);
     impl Debug;
     u8;
@@ -123,7 +156,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct IHOLD_IRUN(u32);
     impl Debug;
     u8;
@@ -132,11 +168,17 @@ bitfield! {
     pub ihold_delay, set_ihold_delay: 19, 16;
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct TPOWERDOWN(pub u32);
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct TSTEP(u32);
     impl Debug;
     u32;
@@ -144,7 +186,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct TPWMTHRS(u32);
     impl Debug;
     u32;
@@ -152,7 +197,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct VACTUAL(u32);
     impl Debug;
     i32;
@@ -160,18 +208,27 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct TCOOLTHRS(u32);
     impl Debug;
     u32;
     pub get, set: 19, 0;
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct SGTHRS(pub u32);
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct SG_RESULT(u32);
     impl Debug;
     u16;
@@ -179,27 +236,25 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Default)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct COOLCONF(u32);
     impl Debug;
     u16;
-    pub semin0, set_semin0: 0;
-    pub semin1, set_semin1: 1;
-    pub semin2, set_semin2: 2;
-    pub semin3, set_semin3: 3;
-    pub seup0, set_seup0: 5;
-    pub seup1, set_seup1: 6;
-    pub semax0, set_semax0: 8;
-    pub semax1, set_semax1: 9;
-    pub semax2, set_semax2: 10;
-    pub semax3, set_semax3: 11;
-    pub sedn0, set_sedn0: 13;
-    pub sedn1, set_sedn1: 14;
+    pub semin, set_semin: 3, 0;
+    pub seup, set_seup: 6, 5;
+    pub semax, set_semax: 11, 8;
+    pub sedn, set_sedn: 14, 13;
     pub seimin, set_seimin: 15;
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct MSCNT(u32);
     impl Debug;
     u16;
@@ -207,7 +262,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct MSCURACT(u32);
     impl Debug;
     u16;
@@ -216,36 +274,30 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct CHOPCONF(u32);
     impl Debug;
     u32;
-    pub toff0, set_toff0: 0;
-    pub toff1, set_toff1: 1;
-    pub toff2, set_toff2: 2;
-    pub toff3, set_toff3: 3;
-    pub hstrt0, set_hstrt0: 4;
-    pub hstrt1, set_hstrt1: 5;
-    pub hstrt2, set_hstrt2: 6;
-    pub hend0, set_hend0: 7;
-    pub hend1, set_hend1: 8;
-    pub hend2, set_hend2: 9;
-    pub hend3, set_hend3: 0;
-    pub tbl0, set_tbl0: 15;
-    pub tbl1, set_tbl1: 16;
+    pub toff, set_toff: 3, 0;
+    pub hstrt, set_hstrt: 6, 4;
+    pub hend, set_hend: 10, 7;
+    pub tbl, set_tbl: 16, 15;
     pub vsense, set_vsense: 17;
-    pub mres0, set_mres0: 24;
-    pub mres1, set_mres1: 25;
-    pub mres2, set_mres2: 26;
-    pub mres3, set_mres3: 27;
-    pub intpol, set_intpol: 28;
+    pub mres, set_mres: 27, 24;
+    pub ntpol, set_intpol: 28;
     pub dedge, set_dedge: 29;
     pub diss2g, set_diss2g: 30;
     pub diss2vs, set_diss2vs: 31;
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct DRV_STATUS(u32);
     impl Debug;
     u32;
@@ -267,24 +319,28 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct PWMCONF(u32);
     impl Debug;
     u8;
     pub pwm_ofs, set_pwm_ofs: 7, 0;
     pub pwm_grad, set_pwm_grad: 15, 8;
-    pub pwm_freq0, set_pwm_freq0: 16;
-    pub pwm_freq1, set_pwm_freq1: 17;
+    pub pwm_freq, set_pwm_freq: 17, 16;
     pub pwm_autoscale, set_pwm_autoscale: 18;
     pub pwm_autograd, set_pwm_autograd: 19;
-    pub freewheel0, set_freewheel0: 20;
-    pub freewheel1, set_freewheel1: 21;
+    pub freewheel, set_freewheel: 21, 20;
     pub pwm_reg, set_pwm_reg: 27, 24;
     pub pwm_lim, set_pwm_lim: 31, 28;
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct PWM_SCALE(u32);
     impl Debug;
     u8;
@@ -294,7 +350,10 @@ bitfield! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct PWM_AUTO(u32);
     impl Debug;
     u8;
@@ -320,20 +379,318 @@ macro_rules! impl_rw {
     };
 }
 
+macro_rules! is_readable {
+    (RW) => {
+        true
+    };
+    (R) => {
+        true
+    };
+    (W) => {
+        false
+    };
+}
+
+macro_rules! is_writable {
+    (RW) => {
+        true
+    };
+    (R) => {
+        false
+    };
+    (W) => {
+        true
+    };
+}
+
+macro_rules! map_indices {
+    ($ix:expr, $T:ident) => {
+        pub(crate) const $T: usize = $ix;
+    };
+    ($ix:expr, $T:ident, $($Ts:ident),*) => {
+        pub(crate) const $T: usize = $ix;
+        map_indices!($T + 1, $($Ts),*);
+    };
+}
+
 /// A macro for generating the `Address` enum along with the `Register` trait implementations.
 macro_rules! impl_registers {
-    ($($RW:ident $addr:literal $T:ident,)*) => {
+    ($($RW:ident $addr:literal $T:ident $map_access:ident $map_access_mut:ident,)*) => {
+        /// Generate a private, unique index for each register into the `Map`'s inner array.
+        mod map_index {
+            map_indices!(0, $($T),*);
+        }
+
+        /// A dynamic representation of a register's 8-bit address.
         #[repr(u8)]
-        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+        #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+        #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
         pub enum Address {
             $(
                 $T = $addr,
             )*
         }
 
+        /// A dynamic representation of a register's 32-bit state.
+        #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+        #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+        #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+        pub enum State {
+            $(
+                $T($T),
+            )*
+        }
+
+        /// A map of the state of all registers in the TMC2209.
+        #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+        #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+        #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+        pub struct Map {
+            arr: MapArray,
+        }
+
+        /// The inner array storing all register state.
+        ///
+        /// Each register is laid out in the array in the order in which they are declared in the
+        /// `impl_registers` macro. The `map_index` module is used internally to map register
+        /// addresses and their state to the associated elements in the array.
+        type MapArray = [State; COUNT];
+
+        /// The total number of documented registers in the TMC2209.
+        ///
+        /// Useful for statically allocated register maps, etc.
+        pub const COUNT: usize = 0 $(+ { let _ = Address::$T; 1 })*;
+
+        impl Map {
+            /// The total number of documented registers in the TMC2209.
+            pub const LEN: usize = COUNT;
+
+            /// Read-only access to the register of the given type.
+            pub fn reg<T>(&self) -> &T
+            where
+                T: 'static + Register,
+            {
+                self.state(T::ADDRESS)
+                    .reg::<T>()
+                    // We gaurantee that `TmcRegisters` will always have state for each register, but need
+                    // to avoid generating panicking branches, so we use an infinite loop rather than
+                    // unwrap.
+                    .unwrap_or_else(|_| loop {})
+            }
+
+            /// Mutable access to the register of the given type.
+            pub fn reg_mut<T>(&mut self) -> &mut T
+            where
+                T: 'static + Register,
+            {
+                self.state_mut(T::ADDRESS)
+                    .reg_mut::<T>()
+                    // We gaurantee that `TmcRegisters` will always have state for each register, but need
+                    // to avoid generating panicking branches, so we use an infinite loop rather than
+                    // unwrap.
+                    .unwrap_or_else(|_| loop {})
+            }
+
+            /// Read-only access to the dynamic representation of the register state at the given
+            /// address.
+            pub fn state(&self, addr: Address) -> &State {
+                match addr {
+                    $(
+                        // We gaurantee that `Map` will always have state for each register.
+                        Address::$T => unsafe {
+                            self.arr.get_unchecked(map_index::$T)
+                        }
+                    )*
+                }
+            }
+
+            /// Mutable access to the dynamic representation of the register state at the given
+            /// address.
+            ///
+            /// Note: This should remain private for internal use only, as the user should never be
+            /// allowed to change the stored `State` to a different variant.
+            fn state_mut(&mut self, addr: Address) -> &mut State {
+                match addr {
+                    $(
+                        // We gaurantee that `Map` will always have state for each register.
+                        Address::$T => unsafe {
+                            self.arr.get_unchecked_mut(map_index::$T)
+                        }
+                    )*
+                }
+            }
+
+            /// Update the given register state.
+            pub fn set_state(&mut self, state: State) {
+                *self.state_mut(state.addr()) = state;
+            }
+
+            // Generate the short-hand names for gaining direct access to typed register state.
+            $(
+                pub fn $map_access(&self) -> &$T {
+                    self.reg::<$T>()
+                }
+
+                pub fn $map_access_mut(&mut self) -> &mut $T {
+                    self.reg_mut::<$T>()
+                }
+            )*
+        }
+
+        impl Address {
+            /// All register addresses.
+            pub const ALL: &'static [Self] = &[
+                $(
+                    Self::$T,
+                )*
+            ];
+
+            /// Whether or not we can send a read request to the register address.
+            pub fn readable(&self) -> bool {
+                match *self {
+                    $(
+                        Self::$T => is_readable!($RW),
+                    )*
+                }
+            }
+
+            /// Whether or not we can send a write request to the register address.
+            pub fn writable(&self) -> bool {
+                match *self {
+                    $(
+                        Self::$T => is_writable!($RW),
+                    )*
+                }
+            }
+        }
+
+        impl State {
+            /// Construct a register state from its address and data represented as a `u32`.
+            pub fn from_addr_and_data(addr: Address, data: u32) -> Self {
+                match addr {
+                    $(
+                        Address::$T => State::$T(<_>::from(data)),
+                    )*
+                }
+            }
+
+            /// Construct the default register state associated with the given address.
+            pub fn from_addr_default(addr: Address) -> Self {
+                match addr {
+                    $(
+                        Address::$T => State::$T(<_>::default()),
+                    )*
+                }
+            }
+
+            /// The address of the register with which this state is associated.
+            pub fn addr(&self) -> Address {
+                match *self {
+                    $(
+                        State::$T(_) => Address::$T,
+                    )*
+                }
+            }
+
+            /// Attempt to retrieve a reference to a register of type `R` from the dynamic register
+            /// `State` representation.
+            ///
+            /// Returns an `Err` if the register type does not match.
+            pub fn reg<R>(&self) -> Result<&R, UnexpectedAddress>
+            where
+                R: 'static + Register,
+            {
+                match *self {
+                    $(
+                        Self::$T(ref r) => (r as &dyn core::any::Any)
+                            .downcast_ref()
+                            .ok_or(UnexpectedAddress),
+                    )*
+                }
+            }
+
+            /// Attempt to retrieve a mutable reference to a register of type `R` from the dynamic
+            /// register `State` representation.
+            ///
+            /// Returns an `Err` if the register type does not match.
+            pub fn reg_mut<R>(&mut self) -> Result<&mut R, UnexpectedAddress>
+            where
+                R: 'static + Register,
+            {
+                match *self {
+                    $(
+                        Self::$T(ref mut r) => (r as &mut dyn core::any::Any)
+                            .downcast_mut()
+                            .ok_or(UnexpectedAddress),
+                    )*
+                }
+            }
+        }
+
+        impl Default for Map {
+            fn default() -> Self {
+                let arr = [$(
+                    State::$T($T::default()),
+                )*];
+                Map { arr }
+            }
+        }
+
+        impl core::ops::Deref for Map {
+            type Target = MapArray;
+            fn deref(&self) -> &Self::Target {
+                &self.arr
+            }
+        }
+
+        #[cfg(feature = "hash")]
+        impl hash32::Hash for Address {
+            fn hash<H>(&self, state: &mut H)
+            where
+                H: hash32::Hasher,
+            {
+                (*self as u8).hash(state)
+            }
+        }
+
+        #[cfg(feature = "hash")]
+        impl hash32::Hash for State {
+            fn hash<H>(&self, state: &mut H)
+            where
+                H: hash32::Hasher,
+            {
+                let u: u32 = (*self).into();
+                u.hash(state)
+            }
+        }
+
+        impl core::ops::Index<Address> for Map {
+            type Output = State;
+            fn index(&self, addr: Address) -> &Self::Output {
+                self.state(addr)
+            }
+        }
+
+        impl core::ops::IndexMut<Address> for Map {
+            fn index_mut(&mut self, addr: Address) -> &mut Self::Output {
+                self.state_mut(addr)
+            }
+        }
+
         impl Into<u8> for Address {
             fn into(self) -> u8 {
                 self as u8
+            }
+        }
+
+        impl Into<u32> for State {
+            fn into(self) -> u32 {
+                match self {
+                    $(
+                        State::$T(r) => r.into(),
+                    )*
+                }
             }
         }
 
@@ -351,8 +708,16 @@ macro_rules! impl_registers {
         }
 
         $(
-            impl Register for $T {
-                const ADDRESS: Address = Address::$T;
+            impl From<u32> for $T {
+                fn from(u: u32) -> $T {
+                    $T(u)
+                }
+            }
+
+            impl From<$T> for State {
+                fn from(r: $T) -> Self {
+                    State::$T(r)
+                }
             }
 
             impl Into<u32> for $T {
@@ -361,9 +726,17 @@ macro_rules! impl_registers {
                 }
             }
 
-            impl From<u32> for $T {
-                fn from(u: u32) -> $T {
-                    $T(u)
+            impl Register for $T {
+                const ADDRESS: Address = Address::$T;
+            }
+
+            impl core::convert::TryFrom<State> for $T {
+                type Error = UnexpectedAddress;
+                fn try_from(state: State) -> Result<Self, Self::Error> {
+                    match state {
+                        State::$T(s) => Ok(s),
+                        _ => Err(UnexpectedAddress),
+                    }
                 }
             }
         )*
@@ -379,38 +752,38 @@ macro_rules! impl_registers {
 
 impl_registers! {
     // General Registers.
-    RW 0x00 GCONF,
-    RW 0x01 GSTAT,
-    R  0x02 IFCNT,
-    W  0x03 SLAVECONF,
-    W  0x04 OTP_PROG,
-    R  0x05 OTP_READ,
-    R  0x06 IOIN,
-    RW 0x07 FACTORY_CONF,
+    RW 0x00 GCONF gconf gconf_mut,
+    RW 0x01 GSTAT gstat gstat_mut,
+    R  0x02 IFCNT ifcnt ifcnt_mut,
+    W  0x03 SLAVECONF slaveconf slaveconf_mut,
+    W  0x04 OTP_PROG otp_prog otp_prog_mut,
+    R  0x05 OTP_READ otp_read otp_read_mut,
+    R  0x06 IOIN ioin ioin_mut,
+    RW 0x07 FACTORY_CONF factory_conf factory_conf_mut,
 
     // Velocity Dependent Control.
-    W  0x10 IHOLD_IRUN,
-    W  0x11 TPOWERDOWN,
-    R  0x12 TSTEP,
-    W  0x13 TPWMTHRS,
-    W  0x22 VACTUAL,
+    W  0x10 IHOLD_IRUN ihold_irun ihold_irun_mut,
+    W  0x11 TPOWERDOWN tpowerdown tpowerdown_mut,
+    R  0x12 TSTEP tstep tstep_mut,
+    W  0x13 TPWMTHRS tpwmthrs tpwmthrs_mut,
+    W  0x22 VACTUAL vactual vactual_mut,
 
     // StallGuard Control.
-    W  0x14 TCOOLTHRS,
-    W  0x40 SGTHRS,
-    R  0x41 SG_RESULT,
-    W  0x42 COOLCONF,
+    W  0x14 TCOOLTHRS tcoolthrs tcoolthrs_mut,
+    W  0x40 SGTHRS sgthrs sgthrs_mut,
+    R  0x41 SG_RESULT sg_result sg_result_mut,
+    W  0x42 COOLCONF coolconf coolconf_mut,
 
     // Sequencer Registers.
-    R  0x6A MSCNT,
-    R  0x6B MSCURACT,
+    R  0x6A MSCNT mscnt mscnt_mut,
+    R  0x6B MSCURACT mscuract mscuract_mut,
 
     // Chopper Control Registers.
-    RW 0x6C CHOPCONF,
-    R  0x6F DRV_STATUS,
-    RW 0x70 PWMCONF,
-    R  0x71 PWM_SCALE,
-    R  0x72 PWM_AUTO,
+    RW 0x6C CHOPCONF chopconf chopconf_mut,
+    R  0x6F DRV_STATUS drv_status drv_status_mut,
+    RW 0x70 PWMCONF pwmconf pwmconf_mut,
+    R  0x71 PWM_SCALE pwm_scale pwm_scale_mut,
+    R  0x72 PWM_AUTO pwm_auto pwm_auto_mut,
 }
 
 impl VACTUAL {
