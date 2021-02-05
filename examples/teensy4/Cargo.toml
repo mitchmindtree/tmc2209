@@ -13,3 +13,18 @@ log = "0.4.8"
 panic-halt = "0.2.0"
 tmc2209 = { path = "../../tmc2209" }
 teensy4-bsp = { git = "https://github.com/mciantyre/teensy4-rs", branch = "master", default-features = false, features = ["rtic"] }
+
+# TODO: These patches were once required, but no longer resolve.
+
+# # Patch `cortex-m-rt` for reasons described here:
+# # https://github.com/mciantyre/teensy4-rs#runtime
+# [patch.crates-io.cortex-m-rt]
+# git = "https://github.com/mciantyre/teensy4-rs"
+# branch = "master"
+#
+# # Patch `imxrt-hal` so that we may access the `hal::Peripherals::steal`
+# # constructor. This patch should be removed once a new version of
+# # `imxrt-hal` is published with the new constructor.
+# [patch.crates-io.imxrt-hal]
+# git = "https://github.com/imxrt-rs/imxrt-rs"
+# branch = "master"
