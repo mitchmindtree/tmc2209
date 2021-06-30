@@ -168,7 +168,7 @@ bitfield! {
     pub ihold_delay, set_ihold_delay: 19, 16;
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
@@ -815,6 +815,12 @@ impl Default for CHOPCONF {
 impl Default for PWMCONF {
     fn default() -> Self {
         Self(0xC10D0024)
+    }
+}
+
+impl Default for TPOWERDOWN {
+    fn default() -> Self {
+        Self(20)
     }
 }
 
