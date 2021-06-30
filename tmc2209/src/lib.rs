@@ -442,3 +442,29 @@ fn bytes_to_u32([b0, b1, b2, b3]: [u8; 4]) -> u32 {
     u |= b3 as u32;
     u
 }
+
+/// Use the selected sense resistor value (in ohms) and the motor's rated current (in mA) to
+/// determine the recommended vsense and "current scale" (for IRUN) values.
+// Code referenced from `TMCStepper.cpp` `rms_current` function in TMC demo source.
+pub fn rms_current_to_vsense_cs(rsense: f32, ma: f32) -> (bool, u8) {
+    let mut cs: u8 = (32.0 * 1.41421 * ma / 1_000.0 * (rsense + 0.02) / 0.325 - 1.0) as u8;
+
+    // If Current Scale is too low, turn on high sensitivity R_sense and calculate again
+    if cs < 16 {
+        cs = (32.0 * 1.41421 * ma / 1_000.0 * (rsense + 0.02) / 0.180 - 1.0) as u8;
+        (true, cs)
+    } else {
+        cs = core::cmp::min(cs, 31);
+        (false, cs)
+    }
+}
+
+/// Use the selected sense resistor value (in ohms) and the current `vsense` setting to convert
+/// the given "current scale" value to an RMS current in mA.
+///
+/// Useful for converting `CS_ACTUAL` to a human readable value.
+// Code referenced from `TMCStepper.cpp` `cs2rms` function in TMC demo source.
+pub fn vsense_cs_to_rms_current(rsense: f32, vsense: bool, cs: u8) -> f32 {
+    let vsense = if vsense { 0.180 } else { 0.325 };
+    (cs + 1) as f32 / 32.0 * vsense / (rsense + 0.02) / 1.41421 * 1_000.0
+}
