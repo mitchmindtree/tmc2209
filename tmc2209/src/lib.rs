@@ -11,6 +11,11 @@ use embedded_hal as hal;
 #[doc(inline)]
 pub use self::reg::{ReadableRegister, Register, WritableRegister};
 
+/// The frequency of the clock that is internal to the TMC2209.
+///
+/// Sometimes referred to as `fclk` in the datasheet.
+pub const INTERNAL_CLOCK_HZ: f32 = 12_000_000.0;
+
 /// A serial reader, for reading responses via the TMC2209's UART interface.
 ///
 /// The `Reader` is stateful and stores its progress between calls to `read`.
@@ -467,4 +472,66 @@ pub fn rms_current_to_vsense_cs(rsense: f32, ma: f32) -> (bool, u8) {
 pub fn vsense_cs_to_rms_current(rsense: f32, vsense: bool, cs: u8) -> f32 {
     let vsense = if vsense { 0.180 } else { 0.325 };
     (cs + 1) as f32 / 32.0 * vsense / (rsense + 0.02) / 1.41421 * 1_000.0
+}
+
+/// Convert the given frequency to the closest TOFF value.
+///
+/// Returns `None` if the TOFF value would be 0, as this value disables motor.
+///
+/// Note that the TMC only supports a discrete collection of 15 chopper frequencies in the range
+/// between 5,952.381hz and 53,571.426hz.
+pub fn chopper_hz_to_toff(fclk: f32, hz: f32) -> Option<u8> {
+    let toff_secs = chopper_hz_to_toff_secs(hz);
+    let toff_f = toff_secs_to_toff_reg(fclk, toff_secs);
+    let toff = core::cmp::min(round_f32(toff_f) as u8, 15);
+    if toff == 0 {
+        None
+    } else {
+        Some(toff)
+    }
+}
+
+/// Convert the given TOFF value to the associated chopper frequency.
+///
+/// Returns `None` if the given value is `< 1` or `> 15`.
+pub fn toff_to_chopper_hz(fclk: f32, toff: u8) -> Option<f32> {
+    if toff < 1 || toff > 15 {
+        None
+    } else {
+        let toff_secs = toff_reg_to_toff_secs(fclk, toff as f32);
+        let hz = toff_secs_to_chopper_hz(toff_secs);
+        Some(hz)
+    }
+}
+
+fn chopper_hz_to_toff_secs(hz: f32) -> f32 {
+    1.0 / hz * 0.25
+}
+
+fn toff_secs_to_chopper_hz(toff_secs: f32) -> f32 {
+    1.0 / toff_secs / 4.0
+}
+
+fn toff_secs_to_toff_reg(fclk: f32, toff_secs: f32) -> f32 {
+    (toff_secs * fclk - 24.0) / 32.0
+}
+
+fn toff_reg_to_toff_secs(fclk: f32, toff_reg: f32) -> f32 {
+    (toff_reg * 32.0 + 24.0) / fclk
+}
+
+// `#[no_std]` friendly round.
+fn round_f32(f: f32) -> f32 {
+    let floor = (f as i32) as f32;
+    let ceil = match (f as i32).checked_add(1) {
+        None => return floor,
+        Some(c) => c as f32,
+    };
+    let dist_floor = f - floor;
+    let dist_ceil = ceil - f;
+    if dist_floor <= dist_ceil {
+        floor
+    } else {
+        ceil
+    }
 }
