@@ -6,7 +6,7 @@ extern crate bitfield;
 pub mod reg;
 
 use core::convert::TryFrom;
-use embedded_hal as hal;
+use embedded_io::{Read, Write};
 
 #[doc(inline)]
 pub use self::reg::{ReadableRegister, Register, WritableRegister};
@@ -99,7 +99,7 @@ impl Reader {
         loop {
             // If we're at the first index, we're looking for the sync byte.
             while self.index == ReadResponse::SYNC_AND_RESERVED_IX {
-                match bytes.get(0) {
+                match bytes.first() {
                     Some(&SYNC_AND_RESERVED) => {
                         self.response_data[self.index] = SYNC_AND_RESERVED;
                         self.index += 1;
@@ -115,7 +115,7 @@ impl Reader {
 
             // Make sure the following byte is addressed to the master.
             if self.index == ReadResponse::MASTER_ADDR_IX {
-                match bytes.get(0) {
+                match bytes.first() {
                     Some(&MASTER_ADDR) => {
                         self.response_data[self.index] = MASTER_ADDR;
                         self.index += 1;
@@ -342,10 +342,10 @@ where
 pub fn send_read_request<R, U>(slave_addr: u8, uart_tx: &mut U) -> Result<(), U::Error>
 where
     R: reg::ReadableRegister,
-    U: hal::blocking::serial::Write<u8>,
+    U: Write,
 {
     let req = read_request::<R>(slave_addr);
-    uart_tx.bwrite_all(req.bytes())
+    uart_tx.write_all(req.bytes())
 }
 
 /// Construct a write access datagram for register `R` of the slave at the given address and
@@ -355,10 +355,10 @@ where
 pub fn send_write_request<R, U>(slave_addr: u8, reg: R, uart_tx: &mut U) -> Result<(), U::Error>
 where
     R: WritableRegister,
-    U: hal::blocking::serial::Write<u8>,
+    U: Write,
 {
     let req = write_request(slave_addr, reg);
-    uart_tx.bwrite_all(req.bytes())
+    uart_tx.write_all(req.bytes())
 }
 
 /// Blocks and attempts to read a response from the given UART receiver.
@@ -374,12 +374,13 @@ where
 /// method directly to avoid blocking or apply your own timeout logic.
 pub fn await_read_response<U>(uart_rx: &mut U) -> ReadResponse
 where
-    U: hal::serial::Read<u8>,
+    U: Read,
 {
     let mut reader = Reader::default();
+    let mut buf = [0u8; 128];
     loop {
-        if let Ok(b) = uart_rx.read() {
-            if let (_, Some(response)) = reader.read_response(&[b]) {
+        if let Ok(_) = uart_rx.read(&mut buf) {
+            if let (_, Some(response)) = reader.read_response(&buf) {
                 return response;
             }
         }
@@ -403,7 +404,7 @@ where
 pub fn await_read<R, U>(uart_rx: &mut U) -> Result<R, reg::UnknownAddress>
 where
     R: ReadableRegister,
-    U: hal::serial::Read<u8>,
+    U: Read,
 {
     let res = await_read_response(uart_rx);
     res.register::<R>()
@@ -419,9 +420,9 @@ pub fn crc(data: &[u8]) -> u8 {
             if ((crc >> 7) ^ (byte & 0x01)) != 0 {
                 crc = (crc << 1) ^ 0x07;
             } else {
-                crc = crc << 1;
+                crc <<= 1;
             }
-            byte = byte >> 1;
+            byte >>= 1;
         }
     }
     crc
@@ -495,7 +496,7 @@ pub fn chopper_hz_to_toff(fclk: f32, hz: f32) -> Option<u8> {
 ///
 /// Returns `None` if the given value is `< 1` or `> 15`.
 pub fn toff_to_chopper_hz(fclk: f32, toff: u8) -> Option<f32> {
-    if toff < 1 || toff > 15 {
+    if !(1..=15).contains(&toff) {
         None
     } else {
         let toff_secs = toff_reg_to_toff_secs(fclk, toff as f32);
