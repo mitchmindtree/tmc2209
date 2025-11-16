@@ -57,7 +57,11 @@ bitfield! {
     pub test_mode, set_test_mode: 9;
 }
 
+// The GSTAT register is special, it is marked as R+WC, which is a status register that can be
+// written to with 1 bit to clear a flag. For example by setting the drv_err bit to 1, it will clear
+// the drv_err flag on write.
 bitfield! {
+    /// Global status flags register.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -65,8 +69,21 @@ bitfield! {
     pub struct GSTAT(u32);
     impl Debug;
     u8;
+    /// Indicates that the IC has been reset since the last read access to GSTAT.
+    /// All regisers have been cleared to reset values.
     pub reset, _: 0;
-    pub drv_err, _: 1;
+    /// Indicates, that the driver has been shut down due to overtemperature or
+    /// short circuit detection since the last read access.
+    /// Read [`DRV_STATUS`] for details.
+    ///
+    /// The flag can only be cleared when all error conditions are cleared.
+    /// To clear the flag, call `set_drv_err(true)`, and then write the register
+    /// to the driver.
+    pub drv_err, set_drv_err: 1;
+    /// Indicates an undervoltage on the charge pump.
+    /// The driver is disabled in this case.
+    ///
+    /// This flag is not latched and thus does not need to be cleared.
     pub uv_cp, _: 2;
 }
 
