@@ -3,6 +3,8 @@
 #[macro_use]
 extern crate bitfield;
 
+use core::f32::consts::SQRT_2;
+
 pub mod reg;
 
 use core::convert::TryFrom;
@@ -379,7 +381,7 @@ where
     let mut reader = Reader::default();
     let mut buf = [0u8; 128];
     loop {
-        if let Ok(_) = uart_rx.read(&mut buf) {
+        if uart_rx.read(&mut buf).is_ok() {
             if let (_, Some(response)) = reader.read_response(&buf) {
                 return response;
             }
@@ -432,11 +434,11 @@ pub fn crc(data: &[u8]) -> u8 {
 /// determine the recommended vsense and "current scale" (for IRUN) values.
 // Code referenced from `TMCStepper.cpp` `rms_current` function in TMC demo source.
 pub fn rms_current_to_vsense_cs(rsense: f32, ma: f32) -> (bool, u8) {
-    let mut cs: u8 = (32.0 * 1.41421 * ma / 1_000.0 * (rsense + 0.02) / 0.325 - 1.0) as u8;
+    let mut cs: u8 = (32.0 * SQRT_2 * ma / 1_000.0 * (rsense + 0.02) / 0.325 - 1.0) as u8;
 
     // If Current Scale is too low, turn on high sensitivity R_sense and calculate again
     if cs < 16 {
-        cs = (32.0 * 1.41421 * ma / 1_000.0 * (rsense + 0.02) / 0.180 - 1.0) as u8;
+        cs = (32.0 * SQRT_2 * ma / 1_000.0 * (rsense + 0.02) / 0.180 - 1.0) as u8;
         (true, cs)
     } else {
         cs = core::cmp::min(cs, 31);
@@ -445,13 +447,32 @@ pub fn rms_current_to_vsense_cs(rsense: f32, ma: f32) -> (bool, u8) {
 }
 
 /// Use the selected sense resistor value (in ohms) and the current `vsense` setting to convert
-/// the given "current scale" value to an RMS current in mA.
+/// the given "current scale" value to an RMS current in **mA**.
 ///
 /// Useful for converting `CS_ACTUAL` to a human readable value.
+///
+/// The `CS` value is the current scale setting as set by the IHOLD and IRUN registers.
+///
+/// The `V_FS` is the full-scale voltage which changes based on the vsense control bit.
+/// If the `vsense` parameter is `true`, high sensitivity mode is used and it will calculate with
+/// a `V_FS` of 0.180V, otherwise it will use 0.325V.
+///
+/// See page 53 of the TMC2209 datasheet for more information.
+///
+/// # Analog Scaling
+///
+/// With analog scaling of `V_FS` (`I_scale_analog=1`, default), the resulting voltage `V_FS'` is
+/// calculated by `V_FS' = V_FS * V_VREF / 2.5V` where `V_VREF` is the voltage on pin `VREF` in the range
+/// 0V to `V_5VOUT/2`.
 // Code referenced from `TMCStepper.cpp` `cs2rms` function in TMC demo source.
 pub fn vsense_cs_to_rms_current(rsense: f32, vsense: bool, cs: u8) -> f32 {
     let vsense = if vsense { 0.180 } else { 0.325 };
-    (cs + 1) as f32 / 32.0 * vsense / (rsense + 0.02) / 1.41421 * 1_000.0
+
+    // CS is the current scale setting as set by the IHOLD and IRUN registers.
+    // V_FS (vsense) is the full-scale voltage as determined by vsense control bit
+    // (please refer to el)
+
+    (cs + 1) as f32 / 32.0 * vsense / (rsense + 0.02) / SQRT_2 * 1_000.0
 }
 
 /// Convert the given frequency to the closest TOFF value.
