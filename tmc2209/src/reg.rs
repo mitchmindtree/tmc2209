@@ -695,15 +695,15 @@ macro_rules! impl_registers {
             }
         }
 
-        impl Into<u8> for Address {
-            fn into(self) -> u8 {
-                self as u8
+        impl From<Address> for u8 {
+            fn from(address: Address) -> u8 {
+                address as u8
             }
         }
 
-        impl Into<u32> for State {
-            fn into(self) -> u32 {
-                match self {
+        impl From<State> for u32 {
+            fn from(state: State) -> u32 {
+                match state {
                     $(
                         State::$T(r) => r.into(),
                     )*
@@ -737,9 +737,9 @@ macro_rules! impl_registers {
                 }
             }
 
-            impl Into<u32> for $T {
-                fn into(self) -> u32 {
-                    self.0 as u32
+            impl From<$T> for u32 {
+                fn from(value: $T) -> u32 {
+                    value.0 as u32
                 }
             }
 
