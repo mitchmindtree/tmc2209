@@ -3,7 +3,7 @@
 //! Please refer to the TMC2209 datasheet for information on what each of these registers and their
 //! fields mean. The register map is described under section 5 of the datasheet.
 //!
-//! https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2209_Datasheet_V103.pdf
+//! <https://www.analog.com/media/en/technical-documentation/data-sheets/TMC2209_datasheet_rev1.08.pdf>
 
 #![allow(non_camel_case_types)]
 
@@ -38,6 +38,7 @@ pub struct UnexpectedAddress;
 // --------------------------------------------------------
 
 bitfield! {
+    /// Global configuration flags
     #[derive(Clone, Copy, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -45,15 +46,61 @@ bitfield! {
     pub struct GCONF(u32);
     impl Debug;
     u16;
+    /// Analog current scaling.
+    ///
+    /// If set to true, the driver uses the voltage supplied to `VREF` as current reference,
+    /// otherwise an internal reference derived from `5VOUT` is used.
     pub i_scale_analog, set_i_scale_analog: 0;
+    /// Whether to use the internal sense resistors for current measurement.
+    ///
+    /// The chip needs to measure the motor current, for this a sense resistor is used.
+    /// If this is true, the chip internal sense resistor will be used, otherwise the external
+    /// sense resistor connected to the `BRA` and `BRB` pads will be used.
     pub internal_rsense, set_internal_rsense: 1;
+    /// Whether to enable spread cycle or stealth chop mode.
+    ///
+    /// If set to false, StealthChop PWM mode will be enabled (depending on velocity thresholds).
+    /// Initially switch from off to on state while in stand still only.
+    ///
+    /// If set to true, SpreadCycle mode will be enabled.
+    ///
+    /// A high level on the `SPREAD` pin will invert this flag to switch between both chopper modes.
     pub en_spread_cycle, set_en_spread_cycle: 2;
+    /// Whether to reverse the motor direction.
+    ///
+    /// A value of true will invert the direction of the motor.
     pub shaft, set_shaft: 3;
+    /// What the index output pin shows.
+    ///
+    /// If set to true, the index pin outputs overtemperature prewarning flag (otpw) instead of
+    /// the first microstep position of sequencer.
     pub index_otpw, set_index_otpw: 4;
+    /// What the index output pin shows.
+    ///
+    /// If set to false, the pin will output as selected by [`GCONF::index_otpw`].
+    /// If set to true, the pin shows step pulses from internal pulse generator (toggle upon each step).
     pub index_step, set_index_step: 5;
+    /// What the `PDN_UART` pin does.
+    ///
+    /// If set to true, the `PDN_UART` input function is disabled, this bit must be set when the UART interface is used.
+    /// If set to false, the `PDN_UART` pin controls standstill current reduction.
     pub pdn_disable, set_pdn_disable: 6;
+    /// How the microstep resolution is selected.
+    ///
+    /// If true, the microstep resolution is set by the [`CHOPCONF::set_mres`] register, otherwise the
+    /// microstep resolution is selected through the `MS1` and `MS2` pins.
     pub mstep_reg_select, set_mstep_reg_select: 7;
+    /// Whether to filter step pulses.
+    ///
+    /// If set to true, software pulse generator optimization will be enabled
+    /// when fullstep frequency > 750Hz (roughly). [`TSTEP`] shows filtered step time values when active.
     pub multistep_filt, set_multistep_filt: 8;
+    /// Whether to enable test mode.
+    ///
+    /// If set to true, it will enable analog test output on ENN pin (pull down resistor off), ENN treated as enabled.
+    /// `IHOLD[1..0]` selects the function of `DC0`: 0..2: T120, DAC, VDDH.
+    ///
+    /// Attention: Not for user, set to 0 for normal operation!
     pub test_mode, set_test_mode: 9;
 }
 
@@ -87,6 +134,13 @@ bitfield! {
     pub uv_cp, _: 2;
 }
 
+/// Interface transmission counter.
+///
+/// This register becomes incremented with each successful UART interface write access.
+/// Read out to check the serial transmission for lost data. Read accesses do not change
+/// the content.
+///
+/// The counter wraps around from 255 to 0, it should be a value between 0 and 255 (inclusive).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -94,6 +148,15 @@ bitfield! {
 pub struct IFCNT(pub u32);
 
 bitfield! {
+    /// SENDDELAY for read access (time until reply is sent):
+    /// - 0, 1: 8 bit times (Attention: Don’t use in multi-slave)
+    /// - 2, 3: 3*8 bit times
+    /// - 4, 5: 5*8 bit times
+    /// - 6, 7: 7*8 bit times
+    /// - 8, 9: 9*8 bit times
+    /// - 10, 11: 11*8 bit times
+    /// - 12, 13: 13*8 bit times
+    /// - 14, 15: 15*8 bit times
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -105,6 +168,8 @@ bitfield! {
 }
 
 bitfield! {
+    /// Write access programs OTP memory (one bit at a time),
+    /// Read access refreshes read data from OTP after a write
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -112,8 +177,14 @@ bitfield! {
     pub struct OTP_PROG(u32);
     impl Debug;
     u16;
+    /// Selection of OTP bit to be programmed to the selected
+    /// byte location (n=0..7: programs bit n to a logic 1)
     pub otp_bit, set_otp_bit: 2, 0;
+    /// Selection of OTP programming location (0, 1 or 2)
     pub otp_byte, set_otp_byte: 5, 4;
+    /// Set to 0xbd to enable programming.
+    ///
+    /// A programming time of minimum 10ms per bit is recommended (check by reading [`OTP_READ`]).
     pub opt_magic, set_otp_magic: 15, 8;
 }
 
@@ -173,6 +244,7 @@ bitfield! {
 }
 
 bitfield! {
+    /// Driver current control
     #[derive(Clone, Copy, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -180,11 +252,47 @@ bitfield! {
     pub struct IHOLD_IRUN(u32);
     impl Debug;
     u8;
+    /// Standstill current.
+    ///
+    /// This is the current used when the motor is not moving, but still powered.
+    ///
+    /// Valid values are 0=1/32, ..., 31=32/32.
+    ///
+    /// A value of 0 allows to choose freewheeling or coild
+    /// short circuit (passive braking) for motor stand still.
+    ///
+    /// Consider using [`rms_current_to_vsense_cs`](crate::rms_current_to_vsense_cs)
+    /// to convert a current value to the appropriate register value.
+    ///
+    /// Reset default: OTP
     pub ihold, set_ihold: 4, 0;
+    /// Motor run current.
+    ///
+    /// Consider using [`rms_current_to_vsense_cs`](crate::rms_current_to_vsense_cs)
+    /// to convert a current value to the appropriate register value.
+    ///
+    /// It is recommended to choose sense resistors in a way, that normal
+    /// IRUN is between 16 and 31 for the best microstep performance.
+    ///
+    /// Reset default: 31
     pub irun, set_irun: 12, 8;
+    /// Controls the number of clock cycles for motor power down after standstill is detected
+    /// ([`DRV_STATUS::stst`] = 1) and [`TPOWERDOWN`] has expired.
+    ///
+    /// The smooth transition avoids a motor jerk upon power down.
+    ///
+    /// - 0: Instant power down
+    /// - 1..15: Delay per current reduction step in multiple of 2^18 clocks
     pub ihold_delay, set_ihold_delay: 19, 16;
 }
 
+/// Sets the delay time from stand still ([`DRV_STATUS::stst`]) detection to motor current power down.
+///
+/// Time range is about 0 to 5.6 seconds. Setting 0 is no delay, 1 a minimum delay.
+/// Further increment is in discrete steps of 2^18 clock cycles (value * 2^18 * t_CLK).
+///
+/// Attention: A minimum setting of 2 is required to allow automatic
+/// tuning of StealthChop `PWM_OFFS_AUTO`.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -192,6 +300,19 @@ bitfield! {
 pub struct TPOWERDOWN(pub u32);
 
 bitfield! {
+    /// Actual measured time between two 1/256 microsteps derived from the step input frequency in units of 1/f_CLK.
+    ///
+    /// Measured value is 2^20 - 1 in case of overflow or stand still.
+    /// `TSTEP` always related to 1/256 step, independent of the actual [`CHOPCONF::mres`].
+    ///
+    /// The `TSTEP` related threshold uses a hysteresis of 1/16 of the
+    /// compare value to compensate for jitter in the clock or the step
+    /// frequency: (Txxx*15/16)-1 is the lower compare value for each
+    /// `TSTEP` based comparison.
+    ///
+    /// This means, that the lower switching velocity equals the
+    /// calculated setting, but the upper switching velocity is higher as
+    /// defined by the hysteresis setting.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -214,6 +335,16 @@ bitfield! {
 }
 
 bitfield! {
+    /// VACTUAL allows moving the motor by UART control.
+    ///
+    /// It gives the motor velocity in +-(2^23) - 1 [microsteps / t].
+    ///
+    /// - 0: Normal operation, driver reacts to step input.
+    /// - other: Motor moves with the velocity given by VACTUAL. Step pulses can be monitored via INDEX output.
+    ///   The motor direction is controlled by the sign of VACTUAL.
+    ///
+    /// If the internal clock with 12 MHz is used, you can convert microsteps per second
+    /// to the value for this register like this `(microsteps_per_second / 0.715).round() as i32`
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -253,6 +384,7 @@ bitfield! {
 }
 
 bitfield! {
+    /// Smart Energy Control CoolStep and StallGuard
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -260,10 +392,42 @@ bitfield! {
     pub struct COOLCONF(u32);
     impl Debug;
     u16;
+    /// Minimum StallGuard value for smart current control and smart current enable.
+    ///
+    /// If the StallGuard4 result falls below `SEMIN * 32`, the motor current becomes
+    /// increased to reduce motor load angle.
+    ///
+    /// A value of 0 will turn off the smart current control functionality.
+    /// Valid values are 0-15.
+    ///
+    /// This feature is referred to as cool step.
     pub semin, set_semin: 3, 0;
+    /// Current step up width.
+    ///
+    /// Current increment steps per measured StallGuard value:
+    /// - 0: 1
+    /// - 1: 2
+    /// - 2: 4
+    /// - 3: 8
     pub seup, set_seup: 6, 5;
+    /// StallGuard hysteresis value for smart current control.
+    ///
+    /// If the StallGuard4 result is equal to or above `(SEMIN + SEMAX + 1) * 32`, the motor
+    /// current becomes decreased to save energy.
+    ///
+    /// Valid values are 0-15.
     pub semax, set_semax: 11, 8;
+    /// Current down step speed.
+    ///
+    /// - 0: For each 32 StallGuard4 values decrease by one
+    /// - 1: For each 8 StallGuard4 values decrease by one
+    /// - 2: For each 2 StallGuard4 values decrease by one
+    /// - 3: For each StallGuard4 value decrease by one
     pub sedn, set_sedn: 14, 13;
+    /// Minimum current for smart current control.
+    ///
+    /// - 0: 1/2 of current setting [`IHOLD_IRUN::irun`]. Attention: Use with IRUN >= 10
+    /// - 1: 1/4 of current setting [`IHOLD_IRUN::irun`]. Attention: Use with IRUN >= 20
     pub seimin, set_seimin: 15;
 }
 
@@ -291,6 +455,7 @@ bitfield! {
 }
 
 bitfield! {
+    /// Chopper configuration
     #[derive(Clone, Copy, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -298,15 +463,93 @@ bitfield! {
     pub struct CHOPCONF(u32);
     impl Debug;
     u32;
+    /// TOFF off time and driver enable.
+    ///
+    /// This setting controls duration of slow decay phase
+    /// N_CLK = 24 + 32 * TOFF
+    ///
+    /// - 0: Driver disabled, all bridges off
+    /// - 1: Use only with [`CHOPCONF::tbl`] >= 2
+    /// - 2..15
+    ///
+    /// (Default: OTP, resp. 3 in StealthChop mode)
     pub toff, set_toff: 3, 0;
+    /// %000 … %111:
+    /// Add 1, 2, …, 8 to hysteresis low value HEND
+    /// (1/512 of this setting adds to current setting)
+    /// Attention: Effective HEND+HSTRT ≤ 16.
+    /// Hint: Hysteresis decrement is done each 16 clocks
+    ///
+    /// (Default: OTP, resp. 5 in StealthChop mode)
     pub hstrt, set_hstrt: 6, 4;
+    /// %0000 … %1111:
+    /// Hysteresis is -3, -2, -1, 0, 1, …, 12
+    /// (1/512 of this setting adds to current setting)
+    ///
+    /// This is the hysteresis value which becomes used for the
+    /// hysteresis chopper.
+    ///
+    /// (Default: OTP, resp. 0 in StealthChop mode)
     pub hend, set_hend: 10, 7;
+    /// Sets the comparator blank time to 16, 24, 32, or 40 clocks.
+    ///
+    /// Note that you can not call this function with the clocks.
+    /// Each of the comparator blank times corresponds to a value from 0 to 3:
+    /// - 0: 16 clocks
+    /// - 1: 24 clocks
+    /// - 2: 32 clocks
+    /// - 3: 40 clocks
+    ///
+    /// which you use to set the field.
+    ///
+    /// Hint: 0 or 1 is recommended for most applications.
+    ///
+    /// By default it uses OTP.
     pub tbl, set_tbl: 16, 15;
+    /// Sense resistor voltage based current scaling.
+    ///
+    /// If set to true, the driver uses a high sensitivity, low sense resistor voltage,
+    /// otherwise, a low sensitivity, high sense resistor voltage is used.
     pub vsense, set_vsense: 17;
+    /// The microstep resolution per step.
+    ///
+    /// The resolution gives the number of microstep entries per sine quarter wave.
+    /// When choosing a lower microstep resolution, the driver automatically uses
+    /// microstep positions which result in a symmetrical wave.
+    ///
+    /// Selection is through the pins, unless it is disabled by [`GCONF::mstep_reg_select`].
+    ///
+    /// The values range from 0 to 8, where
+    /// - 0: 256 microsteps/step
+    /// - 1: 128 microsteps/step
+    /// - 2: 64 microsteps/step
+    /// - 3: 32 microsteps/step
+    /// - 4: 16 microsteps/step
+    /// - ...
+    ///
+    /// In general the number of microsteps can be converted to the value the driver understands
+    /// by calculating `8 - log2(microsteps)`. For example, for 16 microsteps, `8 - log2(16) = 4`.
     pub mres, set_mres: 27, 24;
-    pub ntpol, set_intpol: 28;
+    /// Interpolation to 256 microsteps.
+    ///
+    /// When enabled, the actual microstep resolution ([`CHOPCONF::mres`])
+    /// becomes extrapolated to 256 microsteps for smoothest motor operation.
+    ///
+    /// By default, this is enabled.
+    pub intpol, set_intpol: 28;
+    /// Enable double edge step pulses.
+    ///
+    /// Enables step impulse at each step edge to reduce step frequency
+    /// requirement. This mode is not compatible with the step filtering
+    /// function [`GCONF::multistep_filt`].
     pub dedge, set_dedge: 29;
+    /// Short to GND protection disable.
+    ///
+    /// If set to true, the short protection to GND will be disabled.
     pub diss2g, set_diss2g: 30;
+    /// Low side short protection disable.
+    ///
+    /// If set to true, the short protection low side will be disabled.
     pub diss2vs, set_diss2vs: 31;
 }
 
