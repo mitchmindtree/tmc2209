@@ -246,7 +246,7 @@ impl ReadResponse {
     /// `reg::Address`. See the `register` method.
     pub fn data_u32(&self) -> u32 {
         let d = self.data();
-        bytes_to_u32([d[0], d[1], d[2], d[3]])
+        u32::from_be_bytes([d[0], d[1], d[2], d[3]])
     }
 
     /// Attempt to cast the `data` field to a register bitfield of the given type.
@@ -293,7 +293,7 @@ impl WriteRequest {
     pub fn from_state(slave_addr: u8, state: reg::State) -> Self {
         const WRITE: u8 = 0b10000000;
         let reg_addr_rw = state.addr() as u8 | WRITE;
-        let [b0, b1, b2, b3] = u32_to_bytes(state.into());
+        let [b0, b1, b2, b3] = u32::to_be_bytes(state.into());
         let mut bytes = [
             SYNC_AND_RESERVED,
             slave_addr,
@@ -426,27 +426,6 @@ pub fn crc(data: &[u8]) -> u8 {
         }
     }
     crc
-}
-
-// Helper function for converting a `u32` to bytes in the order they should be written in an access
-// request datagram.
-fn u32_to_bytes(u: u32) -> [u8; 4] {
-    let b0 = (u >> 24) as u8;
-    let b1 = (u >> 16) as u8;
-    let b2 = (u >> 8) as u8;
-    let b3 = u as u8;
-    [b0, b1, b2, b3]
-}
-
-// Helper function for converting the bytes of the data field of an access response datagram to a
-// `u32` value ready for conversion to a register bitfield.
-fn bytes_to_u32([b0, b1, b2, b3]: [u8; 4]) -> u32 {
-    let mut u = 0u32;
-    u |= (b0 as u32) << 24;
-    u |= (b1 as u32) << 16;
-    u |= (b2 as u32) << 8;
-    u |= b3 as u32;
-    u
 }
 
 /// Use the selected sense resistor value (in ohms) and the motor's rated current (in mA) to
