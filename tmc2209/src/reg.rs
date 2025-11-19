@@ -1056,25 +1056,49 @@ impl VACTUAL {
 
 impl Default for GCONF {
     fn default() -> Self {
-        Self(0x00000041)
+        let mut result = Self(0);
+
+        result.set_i_scale_analog(true);
+        result.set_pdn_disable(true);
+
+        result
     }
 }
 
 impl Default for IHOLD_IRUN {
     fn default() -> Self {
-        Self(0x00001F00)
+        let mut result = Self(0);
+
+        result.set_irun(31);
+
+        result
     }
 }
 
 impl Default for CHOPCONF {
     fn default() -> Self {
-        Self(0x10000053)
+        let mut result = Self(0);
+
+        result.set_toff(3);
+        result.set_hstrt(5);
+        result.set_intpol(true);
+
+        result
     }
 }
 
 impl Default for PWMCONF {
     fn default() -> Self {
-        Self(0xC10D0024)
+        let mut result = Self(0);
+
+        result.set_pwm_ofs(36);
+        result.set_pwm_freq(1);
+        result.set_pwm_autoscale(true);
+        result.set_pwm_autograd(true);
+        result.set_pwm_reg(1);
+        result.set_pwm_lim(12);
+
+        result
     }
 }
 
@@ -1105,4 +1129,24 @@ fn test_gconf() {
     assert_eq!(g.0, 0b1000000001);
     g = Default::default();
     assert_eq!(g.0, 0x00000041);
+}
+
+#[test]
+fn test_gconf_default() {
+    assert_eq!(GCONF::default(), GCONF(0x00000041));
+}
+
+#[test]
+fn test_ihold_irun_default() {
+    assert_eq!(IHOLD_IRUN::default(), IHOLD_IRUN(0x00001F00));
+}
+
+#[test]
+fn test_chopconf_default() {
+    assert_eq!(CHOPCONF::default(), CHOPCONF(0x10000053));
+}
+
+#[test]
+fn test_pwmconf_default() {
+    assert_eq!(PWMCONF::default(), PWMCONF(0xC10D0024));
 }
