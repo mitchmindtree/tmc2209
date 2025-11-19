@@ -185,7 +185,9 @@ impl ReadRequest {
         Self::from_addr(slave_addr, R::ADDRESS)
     }
 
-    /// Should this be exposed? Doesn't protect against specifying a non-readable register.
+    /// Constructs a read request for to read the specified register of the slave with the given address.
+    ///
+    /// <div class="warning">This function does not check if the register is readable.</div>
     pub fn from_addr(slave_addr: u8, register: reg::Address) -> Self {
         const READ: u8 = 0b00000000;
         let reg_addr_rw = (register as u8 | READ) & 0x7F;
@@ -198,6 +200,12 @@ impl ReadRequest {
     /// The request as a slice of bytes, ready to be written via the serial interface.
     pub fn bytes(&self) -> &[u8] {
         &self.0[..]
+    }
+}
+
+impl From<ReadRequest> for [u8; ReadRequest::LEN_BYTES] {
+    fn from(req: ReadRequest) -> Self {
+        req.0
     }
 }
 
@@ -275,6 +283,12 @@ impl ReadResponse {
     }
 }
 
+impl From<ReadResponse> for [u8; ReadResponse::LEN_BYTES] {
+    fn from(res: ReadResponse) -> Self {
+        res.0
+    }
+}
+
 impl WriteRequest {
     /// The length of the message in bytes.
     pub const LEN_BYTES: usize = 8;
@@ -293,9 +307,18 @@ impl WriteRequest {
     /// TODO: Return a `Result` where an `Err` is returned if a non-write-able register was
     /// specified.
     pub fn from_state(slave_addr: u8, state: reg::State) -> Self {
+        Self::from_raw_data(slave_addr, state.addr(), state)
+    }
+
+    /// Construct a write request from raw data.
+    ///
+    /// This bypasses the need to implement the `WritableRegister` trait for custom types.
+    ///
+    /// <div class="warning">This function does not check if the register is writable.</div>
+    pub fn from_raw_data(slave_addr: u8, reg_addr: reg::Address, data: impl Into<u32>) -> Self {
         const WRITE: u8 = 0b10000000;
-        let reg_addr_rw = state.addr() as u8 | WRITE;
-        let [b0, b1, b2, b3] = u32::to_be_bytes(state.into());
+        let reg_addr_rw = reg_addr as u8 | WRITE;
+        let [b0, b1, b2, b3] = u32::to_be_bytes(data.into());
         let mut bytes = [
             SYNC_AND_RESERVED,
             slave_addr,
@@ -314,6 +337,12 @@ impl WriteRequest {
     /// The request as a slice of bytes, ready to be written via the serial interface.
     pub fn bytes(&self) -> &[u8] {
         &self.0[..]
+    }
+}
+
+impl From<WriteRequest> for [u8; WriteRequest::LEN_BYTES] {
+    fn from(req: WriteRequest) -> Self {
+        req.0
     }
 }
 
@@ -341,7 +370,7 @@ where
 /// via UART.
 ///
 /// This simply calls `read_request` internally before writing the request via `U::bwrite_all`.
-pub fn send_read_request<R, U>(slave_addr: u8, uart_tx: &mut U) -> Result<(), U::Error>
+pub fn send_read_request<R, U>(slave_addr: u8, mut uart_tx: U) -> Result<(), U::Error>
 where
     R: reg::ReadableRegister,
     U: Write,
@@ -354,7 +383,7 @@ where
 /// send it via UART.
 ///
 /// This simply calls `write_request` internally before writing the request via `U::bwrite_all`.
-pub fn send_write_request<R, U>(slave_addr: u8, reg: R, uart_tx: &mut U) -> Result<(), U::Error>
+pub fn send_write_request<R, U>(slave_addr: u8, reg: R, mut uart_tx: U) -> Result<(), U::Error>
 where
     R: WritableRegister,
     U: Write,
@@ -374,7 +403,7 @@ where
 /// duration and return with a timeout error in the case that the duration is exceeded before a
 /// response can be read. In the meantime, consider using the `Reader` and its `read_response`
 /// method directly to avoid blocking or apply your own timeout logic.
-pub fn await_read_response<U>(uart_rx: &mut U) -> ReadResponse
+pub fn await_read_response<U>(mut uart_rx: U) -> ReadResponse
 where
     U: Read,
 {
@@ -403,7 +432,7 @@ where
 /// duration and return with a timeout error in the case that the duration is exceeded before a
 /// response can be read. In the meantime, consider using the `Reader` and its `read_response`
 /// method directly to avoid blocking or apply your own timeout logic.
-pub fn await_read<R, U>(uart_rx: &mut U) -> Result<R, reg::UnknownAddress>
+pub fn await_read<R, U>(uart_rx: U) -> Result<R, reg::UnknownAddress>
 where
     R: ReadableRegister,
     U: Read,
