@@ -98,7 +98,7 @@ bitfield! {
     /// Whether to enable test mode.
     ///
     /// If set to true, it will enable analog test output on ENN pin (pull down resistor off), ENN treated as enabled.
-    /// `IHOLD[1..0]` selects the function of `DC0`: 0..2: T120, DAC, VDDH.
+    /// `IHOLD[1..0]` selects the function of `DCO`: 0..2: T120, DAC, VDDH.
     ///
     /// Attention: Not for user, set to 0 for normal operation!
     pub test_mode, set_test_mode: 9;
@@ -224,8 +224,8 @@ bitfield! {
     /// differs between individual ICs! It should not be altered.
     pub otp_fclktrim, _: 4, 0;
     /// Reset default for OTTRIM:
-    /// - 0: OTTRIM= %00 (143°C)
-    /// - 1: OTTRIM= %01 (150°C)
+    /// - 0: `OTTRIM=0b00` (143°C)
+    /// - 1: `OTTRIM=0b01` (150°C)
     /// (internal power stage temperature about 10°C above the sensor temperature limit)
     pub otp_ottrim, _: 5;
     /// Reset default for GCONF.internal_Rsense
@@ -302,25 +302,25 @@ bitfield! {
     /// This value will set the default value for 8th bit in the `CHOPCONF` register (hend1).
     pub otp_pwm_ofs, _: 16;
     /// Reset default for PWM_REG:
-    /// - 0: PWM_REG=%1000: max. 4 increments / cycle
-    /// - 1: PWM_REG=%0010: max. 1 increment / cycle
+    /// - 0: `PWM_REG=0b1000`: max. 4 increments / cycle
+    /// - 1: `PWM_REG=0b0010`: max. 1 increment / cycle
     pub otp_pwm_reg, _: 17;
     /// Reset default for PWM_FREQ:
-    /// - 0: PWM_FREQ=%01=2/683
-    /// - 1: PWM_FREQ=%10=2/512
+    /// - 0: `PWM_FREQ=0b01=2/683`
+    /// - 1: `PWM_FREQ=0b10=2/512`
     pub otp_pwm_freq, _: 18;
     /// Reset default for IHOLDDELAY
-    /// - %00: IHOLDDELAY= 1
-    /// - %01: IHOLDDELAY= 2
-    /// - %10: IHOLDDELAY= 4
-    /// - %11: IHOLDDELAY= 8
+    /// - `0b00`: IHOLDDELAY= 1
+    /// - `0b01`: IHOLDDELAY= 2
+    /// - `0b10`: IHOLDDELAY= 4
+    /// - `0b11`: IHOLDDELAY= 8
     pub otp_ihold_delay, _: 20, 19;
     /// Reset default for standstill current IHOLD (used only if
     /// current reduction enabled, e.g. pin PDN_UART low).
-    /// - %00: IHOLD= 16 (53% of IRUN)
-    /// - %01: IHOLD= 2 ( 9% of IRUN)
-    /// - %10: IHOLD= 8 (28% of IRUN)
-    /// - %11: IHOLD= 24 (78% of IRUN)
+    /// - `0b00`: IHOLD= 16 (53% of IRUN)
+    /// - `0b01`: IHOLD= 2 ( 9% of IRUN)
+    /// - `0b10`: IHOLD= 8 (28% of IRUN)
+    /// - `0b11`: IHOLD= 24 (78% of IRUN)
     ///
     /// (Reset default for run current IRUN=31)
     pub otp_ihold, _: 22, 21;
@@ -382,7 +382,7 @@ bitfield! {
     u8;
     /// FCLKTRIM (Reset default: OTP)
     ///
-    /// 0…31: Lowest to highest clock frequency. Check at charge pump output.
+    /// 0...31: Lowest to highest clock frequency. Check at charge pump output.
     /// The frequency span is not guaranteed, but it is tested, that tuning to 12MHz
     /// internal clock is possible. The devices come preset to 12MHz clock frequency
     /// by OTP programming.
@@ -686,16 +686,16 @@ bitfield! {
     ///
     /// (Default: OTP, resp. 3 in StealthChop mode)
     pub toff, set_toff: 3, 0;
-    /// %000 … %111:
-    /// Add 1, 2, …, 8 to hysteresis low value HEND
+    /// `0b000` ... `0b111`:
+    /// Add 1, 2, ..., 8 to hysteresis low value HEND
     /// (1/512 of this setting adds to current setting)
     /// Attention: Effective HEND+HSTRT ≤ 16.
     /// Hint: Hysteresis decrement is done each 16 clocks
     ///
     /// (Default: OTP, resp. 5 in StealthChop mode)
     pub hstrt, set_hstrt: 6, 4;
-    /// %0000 … %1111:
-    /// Hysteresis is -3, -2, -1, 0, 1, …, 12
+    /// `0b0000` ... `0b1111`:
+    /// Hysteresis is -3, -2, -1, 0, 1, ..., 12
     /// (1/512 of this setting adds to current setting)
     ///
     /// This is the hysteresis value which becomes used for the
