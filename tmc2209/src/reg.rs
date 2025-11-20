@@ -169,7 +169,7 @@ bitfield! {
     pub struct SLAVECONF(u32);
     impl Debug;
     u8;
-    pub get, set: 11, 8;
+    pub send_delay, set_send_delay: 11, 8;
 }
 
 bitfield! {
@@ -195,7 +195,7 @@ bitfield! {
     /// Set to 0xbd to enable programming.
     ///
     /// A programming time of minimum 10ms per bit is recommended (check by reading [`OTP_READ`]).
-    pub opt_magic, set_otp_magic: 15, 8;
+    pub otp_magic, set_otp_magic: 15, 8;
 }
 
 bitfield! {
@@ -367,7 +367,7 @@ bitfield! {
     u8;
     /// Version number of the IC.
     ///
-    /// `0x24` is the first version of the IC, identical numbers mean full digital compatibility.
+    /// `0x21` is the first version of the IC, identical numbers mean full digital compatibility.
     pub version, _: 31, 24;
 }
 
@@ -1466,7 +1466,7 @@ impl Default for TPOWERDOWN {
 fn test_slaveconf() {
     let mut s = SLAVECONF(0);
     assert_eq!(s.0, 0b000000000000);
-    s.set(15);
+    s.set_send_delay(15);
     assert_eq!(s.0, 0b111100000000);
 }
 
