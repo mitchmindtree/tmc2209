@@ -25,12 +25,12 @@ pub trait ReadableRegister: Register + From<u32> {}
 pub trait WritableRegister: Register + Into<u32> {}
 
 /// An error that might occur in the case that an address could not be parsed.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct UnknownAddress;
 
 /// An error indicating an unexpected `State`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct UnexpectedAddress;
 
@@ -169,7 +169,12 @@ bitfield! {
 
 bitfield! {
     /// Write access programs OTP memory (one bit at a time),
-    /// Read access refreshes read data from OTP after a write
+    /// read access refreshes read data from OTP after a write.
+    ///
+    /// All OTP memory bits are cleared to 0 by default.
+    /// Programming only can set bits to 1, clearing bits is **not** possible.
+    ///
+    /// <div class="warning">OTP = One Time Programmable, you can only program the memory once.</div>
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -189,6 +194,15 @@ bitfield! {
 }
 
 bitfield! {
+    /// Read OTP memory.
+    ///
+    /// The OTP memory holds power up defaults for certain registers. All OTP memory
+    /// bits are cleared to 0 by default.
+    ///
+    /// For programming the OTP, see [`OTP_PROG`].
+    ///
+    /// Factory tuning of the clock frequency affects opt0.0 to otp0.4 (= [`OTP_READ::otp_fclktrim`]).
+    /// The state of these bits therefore may differ between individual ICs.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -196,22 +210,132 @@ bitfield! {
     pub struct OTP_READ(u32);
     impl Debug;
     u8;
+    /// Reset default for FCLKTRIM
+    /// - 0: lowest frequency setting
+    /// - 31: highest frequency setting
+    ///
+    /// **Attention**: This value is pre-programmed by factory clock
+    /// trimming to the default clock frequency of 12MHz and
+    /// differs between individual ICs! It should not be altered.
     pub otp_fclktrim, _: 4, 0;
+    /// Reset default for OTTRIM:
+    /// - 0: OTTRIM= %00 (143°C)
+    /// - 1: OTTRIM= %01 (150°C)
+    /// (internal power stage temperature about 10°C above the sensor temperature limit)
     pub otp_ottrim, _: 5;
+    /// Reset default for GCONF.internal_Rsense
+    /// - 0: External sense resistors
+    /// - 1: Internal sense resistors
     pub otp_internal_rsense, _: 6;
+    /// Reset default for TBL:
+    ///
+    /// - 0: `TBL=0b10`
+    /// - 1: `TBL=0b01`
     pub otp_tbl, _: 7;
+    /// Depending on [`otp_en_spread_cycle`]:
+    ///
+    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    ///
+    /// Reset default for PWM_GRAD as defined by (0..15):
+    /// - 0: PWM_GRAD= 14
+    /// - 1: PWM_GRAD= 16
+    /// - 2: PWM_GRAD= 18
+    /// - 3: PWM_GRAD= 21
+    /// - 4: PWM_GRAD= 24
+    /// - 5: PWM_GRAD= 27
+    /// - 6: PWM_GRAD= 31
+    /// - 7: PWM_GRAD= 35
+    /// - 8: PWM_GRAD= 40
+    /// - 9: PWM_GRAD= 46
+    /// - 10: PWM_GRAD= 52
+    /// - 11: PWM_GRAD= 59
+    /// - 12: PWM_GRAD= 67
+    /// - 13: PWM_GRAD= 77
+    /// - 14: PWM_GRAD= 88
+    /// - 15: PWM_GRAD= 100
+    ///
+    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
+    ///
+    /// This value will set the default bits 0 to 3 in the `CHOPCONF` register (TOFF).
     pub otp_pwm_grad, _: 11, 8;
+    /// Depending on [`otp_en_spread_cycle`]:
+    ///
+    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    ///
+    /// If `true`, `pwm_autograd` is enabled, otherwise disabled.
+    ///
+    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
+    ///
+    /// This value will set the default value for 4th bit in the `CHOPCONF` register (hstrt0) (pwm_autograd=1).
     pub otp_pwm_autograd, _: 12;
+    /// Depending on [`otp_en_spread_cycle`]:
+    ///
+    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    ///
+    /// Reset default for TPWM_THRS as defined by (0..7):
+    /// - 0: TPWM_THRS= 0
+    /// - 1: TPWM_THRS= 200
+    /// - 2: TPWM_THRS= 300
+    /// - 3: TPWM_THRS= 400
+    /// - 4: TPWM_THRS= 500
+    /// - 5: TPWM_THRS= 800
+    /// - 6: TPWM_THRS= 1200
+    /// - 7: TPWM_THRS= 4000
+    ///
+    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
+    ///
+    /// This value will set the default bits 5 to 7 in the `CHOPCONF` register (hstrt1, hstrt2 and hend0).
     pub otp_tpwmthrs, _: 15, 13;
+    /// Depending on [`otp_en_spread_cycle`]:
+    ///
+    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    ///
+    /// This field will set the `PWM_OFS` to `36` (if false) or `0` (if true).
+    ///
+    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
+    ///
+    /// This value will set the default value for 8th bit in the `CHOPCONF` register (hend1).
     pub otp_pwm_ofs, _: 16;
+    /// Reset default for PWM_REG:
+    /// - 0: PWM_REG=%1000: max. 4 increments / cycle
+    /// - 1: PWM_REG=%0010: max. 1 increment / cycle
     pub otp_pwm_reg, _: 17;
+    /// Reset default for PWM_FREQ:
+    /// - 0: PWM_FREQ=%01=2/683
+    /// - 1: PWM_FREQ=%10=2/512
     pub otp_pwm_freq, _: 18;
+    /// Reset default for IHOLDDELAY
+    /// - %00: IHOLDDELAY= 1
+    /// - %01: IHOLDDELAY= 2
+    /// - %10: IHOLDDELAY= 4
+    /// - %11: IHOLDDELAY= 8
     pub otp_iholdddelay, _: 20, 19;
+    /// Reset default for standstill current IHOLD (used only if
+    /// current reduction enabled, e.g. pin PDN_UART low).
+    /// - %00: IHOLD= 16 (53% of IRUN)
+    /// - %01: IHOLD= 2 ( 9% of IRUN)
+    /// - %10: IHOLD= 8 (28% of IRUN)
+    /// - %11: IHOLD= 24 (78% of IRUN)
+    ///
+    /// (Reset default for run current IRUN=31)
     pub otp_ihold, _: 22, 21;
+    /// This flag determines if the driver defaults to SpreadCycle (true) or StealthChop (false).
+    ///
+    /// If StealthChop is enabled by default, it will use these settings for SpreadCycle:
+    /// - `HEND=0`
+    /// - `HSTART=5`
+    /// - `TOFF=3`
+    ///
+    /// If SpreadCycle is enabled by default, it will use these settings for StealthChop:
+    /// - `PWM_GRAD=0`
+    /// - `TPWM_THRS=0`
+    /// - `PWM_OFS=36`
+    /// - `pwm_autograd=1`
     pub otp_en_spread_cycle, _: 23;
 }
 
 bitfield! {
+    /// Reads the state of all input pins available.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -219,19 +343,31 @@ bitfield! {
     pub struct IOIN(u32);
     impl Debug;
     u16;
+    /// Enable pin state.
     pub enn, _: 0;
+    /// Microstep 1 selection pin state.
     pub ms1, _: 2;
+    /// Microstep 2 selection pin state.
     pub ms2, _: 3;
+    /// Diag pin state.
     pub diag, _: 4;
+    /// PDN UART pin state.
     pub pdn_uart, _: 6;
+    /// Step pin state.
     pub step, _: 7;
+    /// Spread cycle pin state.
     pub spread_en, _: 8;
+    /// Direction pin state.
     pub dir, _: 9;
     u8;
+    /// Version number of the IC.
+    ///
+    /// `0x24` is the first version of the IC, identical numbers mean full digital compatibility.
     pub version, _: 31, 24;
 }
 
 bitfield! {
+    /// Factory configuration
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -239,7 +375,19 @@ bitfield! {
     pub struct FACTORY_CONF(u32);
     impl Debug;
     u8;
+    /// FCLKTRIM (Reset default: OTP)
+    ///
+    /// 0…31: Lowest to highest clock frequency. Check at charge pump output.
+    /// The frequency span is not guaranteed, but it is tested, that tuning to 12MHz
+    /// internal clock is possible. The devices come preset to 12MHz clock frequency
+    /// by OTP programming.
     pub fclktrim, set_fclktrim: 4, 0;
+    /// OTTRIM (Default: OTP)
+    ///
+    /// - `0b00`: OT=143°C, OTPW=120°C
+    /// - `0b01`: OT=150°C, OTPW=120°C
+    /// - `0b10`: OT=150°C, OTPW=143°C
+    /// - `0b11`: OT=157°C, OTPW=143°C
     pub ottrim, set_ottrim: 9, 8;
 }
 
@@ -300,19 +448,20 @@ bitfield! {
 pub struct TPOWERDOWN(pub u32);
 
 bitfield! {
-    /// Actual measured time between two 1/256 microsteps derived from the step input frequency in units of 1/f_CLK.
+    /// Actual measured time between two 1/256 microsteps.
     ///
-    /// Measured value is 2^20 - 1 in case of overflow or stand still.
+    /// This is derived from the step input frequency in units of 1/`f_CLK`.
+    /// `f_CLK` is [`tmc2209::INTERNAL_CLOCK_HZ`] if internal clock is used.
+    ///
+    /// Measured value is `2.pow(20) - 1` in case of overflow or stand still.
     /// `TSTEP` always related to 1/256 step, independent of the actual [`CHOPCONF::mres`].
     ///
-    /// The `TSTEP` related threshold uses a hysteresis of 1/16 of the
-    /// compare value to compensate for jitter in the clock or the step
-    /// frequency: (Txxx*15/16)-1 is the lower compare value for each
-    /// `TSTEP` based comparison.
+    /// The `TSTEP` related threshold uses a hysteresis of 1/16 of the compare value to compensate
+    /// for jitter in the clock or the step frequency:
+    /// `(Txxx*15/16)-1` is the lower compare value for each `TSTEP` based comparison.
     ///
-    /// This means, that the lower switching velocity equals the
-    /// calculated setting, but the upper switching velocity is higher as
-    /// defined by the hysteresis setting.
+    /// This means, that the lower switching velocity equals the calculated setting, but the upper
+    /// switching velocity is higher as defined by the hysteresis setting.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -320,10 +469,18 @@ bitfield! {
     pub struct TSTEP(u32);
     impl Debug;
     u32;
+    /// Returns the measured time between two 1/256 microsteps.
     pub get, _: 19, 0;
 }
 
 bitfield! {
+    /// Sets the upper velocity threshold for StealthChop voltage PWM mode.
+    ///
+    /// While `TSTEP >= TPWMTHRS` the driver operates in StealthChop mode (if configured).
+    /// When the velocity exceeds this threshold (higher velocity, lower time between steps),
+    /// the driver switches to SpreadCycle mode.
+    ///
+    /// If the value is set to 0, it is disabled and StealthChop is used for all velocities.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -356,6 +513,18 @@ bitfield! {
 }
 
 bitfield! {
+    /// CoolStep threshold.
+    ///
+    /// This is the lower threshold velocity for switching on smart energy CoolStep and StallGuard to DIAG output.
+    /// (unsigned)
+    ///
+    /// Set this parameter to disable CoolStep at low speeds, where it cannot work reliably.
+    /// The stall output signal become enabled when exceeding this velocity. It becomes disabled again once
+    /// the velocity falls below this threshold.
+    ///
+    /// `TCOOLTHRS >= TSTEP > TPWMTHRS`
+    /// - CoolStep is enabled, if configured (only with StealthChop)
+    /// - Stall output signal on pin DIAG is enabled
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -366,6 +535,10 @@ bitfield! {
     pub get, set: 19, 0;
 }
 
+/// Detection threshold for stall.
+///
+/// The StallGuard value [`SG_RESULT`] becomes compared to the double of this threshold.
+/// A stall is signaled with `SG_RESULT <= SGTHRS * 2`
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -373,6 +546,12 @@ bitfield! {
 pub struct SGTHRS(pub u32);
 
 bitfield! {
+    /// StallGuard result.
+    ///
+    /// SG_RESULT becomes updated with each fullstep, independent of TCOOLTHRS and SGTHRS.
+    /// A higher value signals a lower motor load and more torque headroom. Intended for StealthChop mode, only.
+    ///
+    /// Bits 9 and 0 will always show 0. Scaling to 10 bit is for compatibility to StallGuard2.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -432,6 +611,17 @@ bitfield! {
 }
 
 bitfield! {
+    /// Microstep counter.
+    ///
+    /// Indicates actual position in the microstep table for `CUR_A`. `CUR_B` uses an offset
+    /// of 256 into the table. Reading out MSCNT allows determination of the motor position
+    /// within the electrical wave.
+    ///
+    /// To monitor the internal step pulse execution, one can periodically read out MSCNT to grasp
+    /// steps done in the previous polling interval. It wraps around from 1023 to 0.
+    ///
+    /// For 32 microsteps per fullstep, each step pulse will increment MSCNT by 256 / 32 = 8.
+    /// With this, 10 steps would increment MSCNT by 80.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -439,19 +629,26 @@ bitfield! {
     pub struct MSCNT(u32);
     impl Debug;
     u16;
+    /// Current microstep count (0...1023).
     pub get, _: 9, 0;
 }
 
 bitfield! {
+    /// Actual microstep current for motor phase A and B.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
     #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
     pub struct MSCURACT(u32);
     impl Debug;
-    u16;
-    pub cur_a, _: 8, 0;
-    pub cur_b, _: 24, 16;
+    i16;
+    /// Actual microstep current for motor phase B (sine wave) as read from the internal sine wave table
+    /// (not scaled by current setting). Value ranges from -255 to 255.
+    pub cur_b, _: 8, 0;
+    i16;
+    /// Actual microstep current for motor phase A (co-sine wave) as read from the internal sine wave table
+    /// (not scaled by current setting). Value ranges from -255 to 255.
+    pub cur_a, _: 24, 16;
 }
 
 bitfield! {
@@ -554,6 +751,11 @@ bitfield! {
 }
 
 bitfield! {
+    /// Driver Status Flags and Current Level Read Back
+    ///
+    /// This register contains the status flags for the driver, including error conditions
+    /// like overtemperature, short circuits, and open load detection. It also provides
+    /// the actual current scaling value.
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -561,24 +763,89 @@ bitfield! {
     pub struct DRV_STATUS(u32);
     impl Debug;
     u32;
+    /// Overtemperature pre-warning flag
+    ///
+    /// If `true`, the selected overtemperature pre-warning threshold is exceeded.
+    /// The overtemperature pre-warning flag is common for both bridges.
+    /// Default threshold is usually 120°C (configurable).
     pub otpw, _: 0;
+    /// Overtemperature flag
+    ///
+    /// If `true`, the selected overtemperature limit has been reached.
+    /// Drivers become disabled until `otpw` is also cleared due to cooling down of the IC.
+    /// The overtemperature flag is common for both bridges.
     pub ot, _: 1;
+    /// Short to ground indicator phase A
+    ///
+    /// If `true`, short to GND detected on phase A. The driver becomes disabled.
+    /// The flags stay active until the driver is disabled by software (TOFF=0) or by the ENN input.
     pub s2ga, _: 2;
+    /// Short to ground indicator phase B
+    ///
+    /// If `true`, short to GND detected on phase B. The driver becomes disabled.
+    /// The flags stay active until the driver is disabled by software (TOFF=0) or by the ENN input.
     pub s2gb, _: 3;
+    /// Low side short indicator phase A
+    ///
+    /// If `true`, short on low-side MOSFET detected on phase A.
+    /// The driver becomes disabled. The flags stay active until the driver is disabled
+    /// by software (TOFF=0) or by the ENN input.
     pub s2vsa, _: 4;
+    /// Low side short indicator phase B
+    ///
+    /// If `true`, short on low-side MOSFET detected on phase B.
+    /// The driver becomes disabled. The flags stay active until the driver is disabled
+    /// by software (TOFF=0) or by the ENN input.
     pub s2vsb, _: 5;
+    /// Open load indicator phase A
+    ///
+    /// If `true`, open load detected on phase A.
+    /// Hint: This is just an informative flag. The driver takes no action upon it.
+    /// False detection may occur in fast motion and standstill. Check during slow motion only.
     pub ola, _: 6;
+    /// Open load indicator phase B
+    ///
+    /// If `true`, open load detected on phase B.
+    /// Hint: This is just an informative flag. The driver takes no action upon it.
     pub olb, _: 7;
+    /// 120°C comparator
+    ///
+    /// If `true`, temperature threshold 120°C is exceeded.
     pub t120, _: 8;
+    /// 143°C comparator
+    ///
+    /// If `true`, temperature threshold 143°C is exceeded.
     pub t143, _: 9;
+    /// 150°C comparator
+    ///
+    /// If `true`, temperature threshold 150°C is exceeded.
     pub t150, _: 10;
+    /// 157°C comparator
+    ///
+    /// If `true`, temperature threshold 157°C is exceeded.
     pub t157, _: 11;
+    /// Actual motor current / smart energy current
+    ///
+    /// Actual current control scaling (CS), for monitoring the function of the automatic
+    /// current scaling. Returns the actual scaling value (0..31).
     pub cs_actual, _: 20, 16;
+    /// StealthChop indicator
+    ///
+    /// 1: Driver operates in StealthChop mode.
+    /// 0: Driver operates in SpreadCycle mode.
     pub stealth, _: 30;
+    /// Standstill indicator
+    ///
+    /// This flag indicates motor stand still in each operation mode.
+    /// This occurs 2^20 clocks after the last step pulse.
     pub stst, _: 31;
 }
 
 bitfield! {
+    /// Voltage PWM Mode StealthChop Configuration
+    ///
+    /// This register configures the StealthChop voltage PWM mode, including
+    /// automatic scaling, frequency, and gradients.
     #[derive(Clone, Copy, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -586,17 +853,72 @@ bitfield! {
     pub struct PWMCONF(u32);
     impl Debug;
     u8;
+    /// User defined amplitude (offset)
+    ///
+    /// User defined PWM amplitude offset (0-255) related to full motor current
+    /// (CS_ACTUAL=31) in stand still. (Reset default=36).
+    ///
+    /// When using automatic scaling (`pwm_autoscale=1`) the value is used for initialization only.
+    /// `PWM_OFS` = 0 will disable scaling down motor current below a motor specific lower
+    /// measurement threshold.
     pub pwm_ofs, set_pwm_ofs: 7, 0;
+    /// User defined amplitude gradient
+    ///
+    /// Velocity dependent gradient for PWM amplitude: `PWM_GRAD * 256 / TSTEP`.
+    /// This value is added to `PWM_AMPL` to compensate for the velocity-dependent motor back-EMF.
+    ///
+    /// With automatic scaling (`pwm_autoscale=1`) the value is used for first initialization only.
     pub pwm_grad, set_pwm_grad: 15, 8;
+    /// PWM frequency selection
+    ///
+    /// Determines the frequency of the StealthChop PWM.
+    /// - `0b00`: fPWM = 2/1024 fCLK
+    /// - `0b01`: fPWM = 2/683 fCLK (Standard)
+    /// - `0b10`: fPWM = 2/512 fCLK
+    /// - `0b11`: fPWM = 2/410 fCLK
     pub pwm_freq, set_pwm_freq: 17, 16;
+    /// PWM automatic amplitude scaling
+    ///
+    /// - 0: User defined feed forward PWM amplitude. Current settings IRUN and IHOLD scale
+    ///      PWM amplitude, but are not enforced by regulation.
+    /// - 1: Enable automatic current control (Reset default).
     pub pwm_autoscale, set_pwm_autoscale: 18;
+    /// PWM automatic gradient adaptation
+    ///
+    /// - 0: Fixed value for `PWM_GRAD`.
+    /// - 1: Automatic tuning (only with `pwm_autoscale=1`). `PWM_GRAD_AUTO` is initialized
+    ///      with `PWM_GRAD` and becomes optimized automatically during motion.
     pub pwm_autograd, set_pwm_autograd: 19;
+    /// Standstill options (Freewheeling)
+    ///
+    /// Defines the behavior when motor current setting is zero (`I_HOLD=0`).
+    /// - `0b00`: Normal operation
+    /// - `0b01`: Freewheeling
+    /// - `0b10`: Coil shorted using LS drivers (Passive Braking)
+    /// - `0b11`: Coil shorted using HS drivers (Passive Braking)
     pub freewheel, set_freewheel: 21, 20;
+    /// Regulation loop gradient
+    ///
+    /// User defined maximum PWM amplitude change per half wave when using `pwm_autoscale=1`.
+    /// - 1: 0.5 increments (slowest regulation)
+    /// - 2: 1 increment (default with OTP2.1=1)
+    /// - ...
+    /// - 8: 4 increments (default with OTP2.1=0)
+    /// - ...
+    /// - 15: 7.5 increments (fastest regulation)
     pub pwm_reg, set_pwm_reg: 27, 24;
+    /// PWM automatic scale amplitude limit
+    ///
+    /// Limit for `PWM_SCALE_AUTO` when switching back from SpreadCycle to StealthChop.
+    /// This value defines the upper limit for bits 7 to 4 of the automatic current control
+    /// when switching back. It can be set to reduce the current jerk during mode change.
     pub pwm_lim, set_pwm_lim: 31, 28;
 }
 
 bitfield! {
+    /// Results of StealthChop amplitude regulator.
+    ///
+    /// These values can be used to monitor automatic PWM amplitude scaling (`255` = max voltage).
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -604,12 +926,24 @@ bitfield! {
     pub struct PWM_SCALE(u32);
     impl Debug;
     u8;
+    /// Actual PWM duty cycle.
+    ///
+    /// This value is used for scaling the values `CUR_A` and `CUR_B` read from the sine wave table.
     pub pwm_scale_sum, _: 7, 0;
-    u16;
+    i16;
+    /// 9 Bit signed offset added to the calculated PWM duty cycle.
+    ///
+    /// This is the result of the automatic amplitude regulation based on current measurement.
+    ///
+    /// Returned values range from `-255` to `255`.
     pub pwm_scale_auto, _: 24, 16;
 }
 
 bitfield! {
+    /// Automatic PWM scaling values.
+    ///
+    /// These automatically generated values can be read out in order to
+    /// determine a default / power up setting for [`PWM_GRAD`] and [`PWM_OFS`].
     #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
     #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
     #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -617,7 +951,9 @@ bitfield! {
     pub struct PWM_AUTO(u32);
     impl Debug;
     u8;
+    /// Automatically determined offset value.
     pub pwm_ofs_auto, _: 7, 0;
+    /// Automatically determined gradient value.
     pub pwm_grad_auto, _: 23, 16;
 }
 
