@@ -134,18 +134,23 @@ bitfield! {
     pub uv_cp, _: 2;
 }
 
-/// Interface transmission counter.
-///
-/// This register becomes incremented with each successful UART interface write access.
-/// Read out to check the serial transmission for lost data. Read accesses do not change
-/// the content.
-///
-/// The counter wraps around from 255 to 0, it should be a value between 0 and 255 (inclusive).
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
-pub struct IFCNT(pub u32);
+bitfield! {
+    /// Interface transmission counter.
+    ///
+    /// This register becomes incremented with each successful UART interface write access.
+    /// Read out to check the serial transmission for lost data. Read accesses do not change
+    /// the content.
+    ///
+    /// The counter wraps around from 255 to 0, it should be a value between 0 and 255 (inclusive).
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+    pub struct IFCNT(u32);
+    impl Debug;
+    u8;
+    pub get, set: 7, 0;
+}
 
 bitfield! {
     /// SENDDELAY for read access (time until reply is sent):
@@ -309,7 +314,7 @@ bitfield! {
     /// - %01: IHOLDDELAY= 2
     /// - %10: IHOLDDELAY= 4
     /// - %11: IHOLDDELAY= 8
-    pub otp_iholdddelay, _: 20, 19;
+    pub otp_ihold_delay, _: 20, 19;
     /// Reset default for standstill current IHOLD (used only if
     /// current reduction enabled, e.g. pin PDN_UART low).
     /// - %00: IHOLD= 16 (53% of IRUN)
@@ -434,18 +439,23 @@ bitfield! {
     pub ihold_delay, set_ihold_delay: 19, 16;
 }
 
-/// Sets the delay time from stand still ([`DRV_STATUS::stst`]) detection to motor current power down.
-///
-/// Time range is about 0 to 5.6 seconds. Setting 0 is no delay, 1 a minimum delay.
-/// Further increment is in discrete steps of 2^18 clock cycles (value * 2^18 * t_CLK).
-///
-/// Attention: A minimum setting of 2 is required to allow automatic
-/// tuning of StealthChop `PWM_OFFS_AUTO`.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
-pub struct TPOWERDOWN(pub u32);
+bitfield! {
+    /// Sets the delay time from stand still ([`DRV_STATUS::stst`]) detection to motor current power down.
+    ///
+    /// Time range is about 0 to 5.6 seconds. Setting 0 is no delay, 1 a minimum delay.
+    /// Further increment is in discrete steps of 2^18 clock cycles (value * 2^18 * t_CLK).
+    ///
+    /// Attention: A minimum setting of 2 is required to allow automatic
+    /// tuning of StealthChop `PWM_OFFS_AUTO`.
+    #[derive(Clone, Copy, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+    pub struct TPOWERDOWN(u32);
+    impl Debug;
+    u8;
+    pub get, set: 7, 0;
+}
 
 bitfield! {
     /// Actual measured time between two 1/256 microsteps.
@@ -535,15 +545,20 @@ bitfield! {
     pub get, set: 19, 0;
 }
 
-/// Detection threshold for stall.
-///
-/// The StallGuard value [`SG_RESULT`] becomes compared to the double of this threshold.
-/// A stall is signaled with `SG_RESULT <= SGTHRS * 2`
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
-pub struct SGTHRS(pub u32);
+bitfield! {
+    /// Detection threshold for stall.
+    ///
+    /// The StallGuard value [`SG_RESULT`] becomes compared to the double of this threshold.
+    /// A stall is signaled with `SG_RESULT <= SGTHRS * 2`
+    #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+    pub struct SGTHRS(u32);
+    impl Debug;
+    u8;
+    pub get, set: 7, 0;
+}
 
 bitfield! {
     /// StallGuard result.
