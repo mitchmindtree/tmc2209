@@ -459,19 +459,64 @@ pub fn crc(data: &[u8]) -> u8 {
     crc
 }
 
-/// Use the selected sense resistor value (in ohms) and the motor's rated current (in mA) to
-/// determine the recommended vsense and "current scale" (for IRUN) values.
+/// Calculates the `irun`/`ihold` value for the driver to output the desired motor current.
+///
+/// For this, it uses the selected sense resistor value (in ohms) and the motor's rated current
+/// (in mA) to determine the recommended vsense and "current scale" (for IRUN) values.
+///
+/// # Sense Resistor value
+///
+/// The sense resistor is used by the driver to set the motor current.
+/// The used `rsense` value depends on the hardware setup. Different breakout boards
+/// might use different sense resistor values to achieve different current ranges.
+/// From the TMC2209 datasheet, the following max rms currents are achievable with
+/// different sense resistor values:
+///
+/// | RSENSE \[Ω\] | RMS current \[A\] (VREF=2.5V, IRUN=31, vsense=0) | Fitting motor type (examples) |
+/// |--------------|--------------------------------------------------|-------------------------------|
+/// | 1.00         | 0.23                                             | 300mA motor                   |
+/// | 0.82         | 0.27                                             |                               |
+/// | 0.75         | 0.30                                             |                               |
+/// | 0.68         | 0.33                                             | 400mA motor                   |
+/// | 0.50         | 0.44                                             | 500mA motor                   |
+/// | 470m         | 0.47                                             |                               |
+/// | 390m         | 0.56                                             | 600mA motor                   |
+/// | 330m         | 0.66                                             | 700mA motor                   |
+/// | 270m         | 0.79                                             | 800mA motor                   |
+/// | 220m         | 0.96                                             | 1A motor                      |
+/// | 180m         | 1.15                                             | 1.2A motor                    |
+/// | 150m         | 1.35                                             | 1.5A motor                    |
+/// | 120m         | 1.64                                             | 1.7A motor                    |
+/// | 100m         | 1.92                                             | 2A motor                      |
+/// | 75m          | 2.4*)                                            |                               |
+/// `*)` Value exceeds upper current rating, scaling down required, e.g. by reduced VREF voltage.
+///
+/// By using a wrong `rsense` value, it is possible to destroy a stepper motor if the driver supplies more
+/// than the recommended current. It is strongly recommended to check the hardware
+/// documentation/schematic to find the correct `rsense` value to use.
+///
+/// The external sense resistors should be connected between the `BRA`/`BRB` pins of the driver and GND.
+/// The resistor value is in milliohms (e.g. 0R11 is `0.11` ohms).
+///
+/// # Returns
+///
+/// The returned tuple is `(vsense, current_scale)`, where `vsense` is what should be set in
+/// [`reg::CHOPCONF::set_vsense`] and `current_scale` is the value that should be used for
+/// [`reg::IHOLD_IRUN::set_irun`] (depending on the desired current, it might be used for `ihold`
+/// as well)
 // Code referenced from `TMCStepper.cpp` `rms_current` function in TMC demo source.
-pub fn rms_current_to_vsense_cs(rsense: f32, ma: f32) -> (bool, u8) {
-    let mut cs: u8 = (32.0 * SQRT_2 * ma / 1_000.0 * (rsense + 0.02) / 0.325 - 1.0) as u8;
+pub fn rms_current_to_vsense_cs(rsense: f32, milliamps: f32) -> (bool, u8) {
+    let amps = milliamps / 1_000.0;
+
+    let mut current_scale: u8 = (32.0 * SQRT_2 * amps * (rsense + 0.02) / 0.325 - 1.0) as u8;
 
     // If Current Scale is too low, turn on high sensitivity R_sense and calculate again
-    if cs < 16 {
-        cs = (32.0 * SQRT_2 * ma / 1_000.0 * (rsense + 0.02) / 0.180 - 1.0) as u8;
-        (true, cs)
+    if current_scale < 16 {
+        current_scale = (32.0 * SQRT_2 * amps * (rsense + 0.02) / 0.180 - 1.0) as u8;
+        (true, current_scale)
     } else {
-        cs = core::cmp::min(cs, 31);
-        (false, cs)
+        current_scale = core::cmp::min(current_scale, 31);
+        (false, current_scale)
     }
 }
 

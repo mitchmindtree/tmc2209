@@ -219,9 +219,11 @@ bitfield! {
     /// - 0: lowest frequency setting
     /// - 31: highest frequency setting
     ///
-    /// **Attention**: This value is pre-programmed by factory clock
+    /// <div class="warning">
+    /// <b>Attention</b>: This value is pre-programmed by factory clock
     /// trimming to the default clock frequency of 12MHz and
     /// differs between individual ICs! It should not be altered.
+    /// </div>
     pub otp_fclktrim, _: 4, 0;
     /// Reset default for OTTRIM:
     /// - 0: `OTTRIM=0b00` (143°C)
@@ -237,67 +239,55 @@ bitfield! {
     /// - 0: `TBL=0b10`
     /// - 1: `TBL=0b01`
     pub otp_tbl, _: 7;
-    /// Depending on [`otp_en_spread_cycle`]:
+    /// # StealthChop enabled by default:
     ///
-    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    /// Reset default for [`PWMCONF::pwm_grad`] as defined by (0..15):
+    /// | Value | PWM_GRAD | Value | PWM_GRAD |
+    /// |-------|----------|-------|----------|
+    /// |  0    |       14 |     8 |       40 |
+    /// |  1    |       16 |     9 |       46 |
+    /// |  2    |       18 |    10 |       52 |
+    /// |  3    |       21 |    11 |       59 |
+    /// |  4    |       24 |    12 |       67 |
+    /// |  5    |       27 |    13 |       77 |
+    /// |  6    |       31 |    14 |       88 |
+    /// |  7    |       35 |    15 |      100 |
     ///
-    /// Reset default for PWM_GRAD as defined by (0..15):
-    /// - 0: PWM_GRAD= 14
-    /// - 1: PWM_GRAD= 16
-    /// - 2: PWM_GRAD= 18
-    /// - 3: PWM_GRAD= 21
-    /// - 4: PWM_GRAD= 24
-    /// - 5: PWM_GRAD= 27
-    /// - 6: PWM_GRAD= 31
-    /// - 7: PWM_GRAD= 35
-    /// - 8: PWM_GRAD= 40
-    /// - 9: PWM_GRAD= 46
-    /// - 10: PWM_GRAD= 52
-    /// - 11: PWM_GRAD= 59
-    /// - 12: PWM_GRAD= 67
-    /// - 13: PWM_GRAD= 77
-    /// - 14: PWM_GRAD= 88
-    /// - 15: PWM_GRAD= 100
+    /// # SpreadCycle enabled by default:
     ///
-    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
-    ///
-    /// This value will set the default bits 0 to 3 in the `CHOPCONF` register (TOFF).
+    /// This value will set the default bits `0` to `3` in the [`CHOPCONF`] register (`TOFF`).
     pub otp_pwm_grad, _: 11, 8;
-    /// Depending on [`otp_en_spread_cycle`]:
-    ///
-    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    /// # StealthChop enabled by default:
     ///
     /// If `true`, `pwm_autograd` is enabled, otherwise disabled.
     ///
-    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
+    /// # SpreadCycle enabled by default:
     ///
     /// This value will set the default value for 4th bit in the `CHOPCONF` register (hstrt0) (pwm_autograd=1).
     pub otp_pwm_autograd, _: 12;
-    /// Depending on [`otp_en_spread_cycle`]:
-    ///
-    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    /// # StealthChop enabled by default:
     ///
     /// Reset default for TPWM_THRS as defined by (0..7):
-    /// - 0: TPWM_THRS= 0
-    /// - 1: TPWM_THRS= 200
-    /// - 2: TPWM_THRS= 300
-    /// - 3: TPWM_THRS= 400
-    /// - 4: TPWM_THRS= 500
-    /// - 5: TPWM_THRS= 800
-    /// - 6: TPWM_THRS= 1200
-    /// - 7: TPWM_THRS= 4000
+    /// | Value | TPWM_THRS |
+    /// |-------|-----------|
+    /// | 0     |         0 |
+    /// | 1     |       200 |
+    /// | 2     |       300 |
+    /// | 3     |       400 |
+    /// | 4     |       500 |
+    /// | 5     |       800 |
+    /// | 6     |      1200 |
+    /// | 7     |      4000 |
     ///
-    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
+    /// # SpreadCycle enabled by default:
     ///
     /// This value will set the default bits 5 to 7 in the `CHOPCONF` register (hstrt1, hstrt2 and hend0).
     pub otp_tpwmthrs, _: 15, 13;
-    /// Depending on [`otp_en_spread_cycle`]:
-    ///
-    /// ### `otp_en_spread_cycle == false` (StealthChop enabled by default)
+    /// # StealthChop enabled by default:
     ///
     /// This field will set the `PWM_OFS` to `36` (if false) or `0` (if true).
     ///
-    /// ### `otp_en_spread_cycle == true` (SpreadCycle enabled by default)
+    /// # SpreadCycle enabled by default:
     ///
     /// This value will set the default value for 8th bit in the `CHOPCONF` register (hend1).
     pub otp_pwm_ofs, _: 16;
@@ -389,10 +379,12 @@ bitfield! {
     pub fclktrim, set_fclktrim: 4, 0;
     /// OTTRIM (Default: OTP)
     ///
-    /// - `0b00`: OT=143°C, OTPW=120°C
-    /// - `0b01`: OT=150°C, OTPW=120°C
-    /// - `0b10`: OT=150°C, OTPW=143°C
-    /// - `0b11`: OT=157°C, OTPW=143°C
+    /// | Value  | OT    | OTPW  |
+    /// |--------|-------|-------|
+    /// | `0b00` | 143°C | 120°C |
+    /// | `0b01` | 150°C | 120°C |
+    /// | `0b10` | 150°C | 143°C |
+    /// | `0b11` | 157°C | 143°C |
     pub ottrim, set_ottrim: 9, 8;
 }
 
