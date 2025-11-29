@@ -3,20 +3,149 @@
 #[macro_use]
 extern crate bitfield;
 
-use core::f32::consts::SQRT_2;
-
 pub mod reg;
 
 use core::convert::TryFrom;
+use core::f32::consts::SQRT_2;
+use core::fmt;
+
 use embedded_io::{Read, Write};
 
 #[doc(inline)]
 pub use self::reg::{ReadableRegister, Register, WritableRegister};
 
+/// Contains data types used by the driver.
+pub mod data {
+    /// Defines the behavior when motor current setting is zero (`I_HOLD=0`).
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+    #[repr(u8)]
+    pub enum StandstillMode {
+        ///Normal operation
+        #[default]
+        Normal = 0b00,
+        /// Freewheeling
+        Freewheeling = 0b01,
+        /// Coil shorted using LS drivers (Passive Braking)
+        StrongBraking = 0b10,
+        /// Coil shorted using HS drivers (Passive Braking)
+        Braking = 0b11,
+    }
+
+    impl StandstillMode {
+        #[must_use]
+        pub const fn to_driver(&self) -> u8 {
+            *self as u8
+        }
+    }
+
+    impl From<u8> for StandstillMode {
+        fn from(value: u8) -> Self {
+            match value {
+                0b00 => Self::Normal,
+                0b01 => Self::Freewheeling,
+                0b10 => Self::StrongBraking,
+                0b11 => Self::Braking,
+                _ => unreachable!("Unknown value for StandstillMode"),
+            }
+        }
+    }
+
+    impl From<StandstillMode> for u8 {
+        fn from(mode: StandstillMode) -> Self {
+            mode.to_driver()
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+    pub struct MicroStepResolution {
+        exponent: u8,
+    }
+
+    impl MicroStepResolution {
+        pub const fn new(exponent: u8) -> Self {
+            assert!(exponent <= 8, "Exponent must be between 0 and 8, inclusive");
+            Self { exponent }
+        }
+
+        /// Creates a `MicroStepResolution` from the number of microsteps (e.g., 256, 128, 64, etc.).
+        ///
+        /// # Panics
+        ///
+        /// If `microsteps` is not a power of two or is greater than 256.
+        pub const fn from_microsteps(microsteps: u32) -> Self {
+            assert!(
+                microsteps.is_power_of_two() && microsteps <= 256,
+                "Microsteps must be a power of two and less than or equal to 256"
+            );
+            let exponent = microsteps.trailing_zeros() as u8;
+            Self { exponent }
+        }
+
+        /// The exponent for the microstep resolution.
+        ///
+        /// The number of microsteps is given by `2.pow(exponent)`.
+        pub const fn exponent(&self) -> u8 {
+            self.exponent
+        }
+
+        /// The number of microsteps.
+        pub const fn number_of_microsteps(&self) -> u32 {
+            2_u32.pow(self.exponent() as u32)
+        }
+
+        /// Creates a `MicroStepResolution` from the driver value.
+        ///
+        /// Note that the driver value is `mres = 8 - exponent`.
+        pub const fn from_driver(value: u32) -> Self {
+            Self {
+                exponent: (8 - value) as u8,
+            }
+        }
+
+        /// Converts the `MicroStepResolution` to the driver value.
+        pub const fn to_driver(self) -> u32 {
+            // [256, 128, 64, 32, 16, 8, 4, 2, 1]
+            // [  8,   7,  6,  5,  4, 3, 2, 1, 0]
+            //
+            // mres = 8 - exponent
+            (8 - self.exponent) as u32
+        }
+    }
+
+    impl From<u32> for MicroStepResolution {
+        fn from(value: u32) -> Self {
+            Self::from_driver(value)
+        }
+    }
+
+    impl From<MicroStepResolution> for u32 {
+        fn from(resolution: MicroStepResolution) -> Self {
+            resolution.to_driver()
+        }
+    }
+}
+
 /// The frequency of the clock that is internal to the TMC2209.
 ///
 /// Sometimes referred to as `fclk` in the datasheet.
 pub const INTERNAL_CLOCK_HZ: f32 = 12_000_000.0;
+
+/// An error indicating that the register can not be written to.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+pub struct ReadOnlyRegister;
+
+impl fmt::Display for ReadOnlyRegister {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Attempted to write to a read-only register")
+    }
+}
 
 /// A serial reader, for reading responses via the TMC2209's UART interface.
 ///
@@ -298,16 +427,25 @@ impl WriteRequest {
     where
         R: reg::WritableRegister,
     {
-        Self::from_state(slave_addr, register.into())
+        Self::try_from_state(slave_addr, register.into())
+            // The trait guarantees that the adress is writable, but need
+            // to avoid generating panicking branches, so we use an infinite loop rather than
+            // unwrap.
+            .unwrap_or_else(|_| loop {})
     }
 
     /// A dynamic alternative to `new`, for when the exact register begin written to is not known
     /// at compile time.
     ///
-    /// TODO: Return a `Result` where an `Err` is returned if a non-write-able register was
-    /// specified.
-    pub fn from_state(slave_addr: u8, state: reg::State) -> Self {
-        Self::from_raw_data(slave_addr, state.addr(), state)
+    /// # Errors
+    ///
+    /// Returns a `ReadOnlyRegister` error if the provided state corresponds to a read-only register.
+    pub fn try_from_state(slave_addr: u8, state: reg::State) -> Result<Self, ReadOnlyRegister> {
+        if !state.addr().writable() {
+            return Err(ReadOnlyRegister);
+        }
+
+        Ok(Self::from_raw_data(slave_addr, state.addr(), state))
     }
 
     /// Construct a write request from raw data.

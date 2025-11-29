@@ -7,6 +7,8 @@
 
 #![allow(non_camel_case_types)]
 
+use crate::data::{MicroStepResolution, StandstillMode};
+
 // Register Traits
 // --------------------------------------------------------
 
@@ -733,7 +735,7 @@ bitfield! {
     ///
     /// In general the number of microsteps can be converted to the value the driver understands
     /// by calculating `8 - log2(microsteps)`. For example, for 16 microsteps, `8 - log2(16) = 4`.
-    pub mres, set_mres: 27, 24;
+    pub from into MicroStepResolution, mres, set_mres: 27, 24;
     /// Interpolation to 256 microsteps.
     ///
     /// When enabled, the actual microstep resolution ([`CHOPCONF::mres`])
@@ -903,7 +905,7 @@ bitfield! {
     /// - `0b01`: Freewheeling
     /// - `0b10`: Coil shorted using LS drivers (Passive Braking)
     /// - `0b11`: Coil shorted using HS drivers (Passive Braking)
-    pub freewheel, set_freewheel: 21, 20;
+    pub from into StandstillMode, freewheel, set_freewheel: 21, 20;
     /// Regulation loop gradient
     ///
     /// User defined maximum PWM amplitude change per half wave when using `pwm_autoscale=1`.
