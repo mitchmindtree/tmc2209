@@ -6,15 +6,146 @@ extern crate bitfield;
 pub mod reg;
 
 use core::convert::TryFrom;
+use core::f32::consts::SQRT_2;
+use core::fmt;
+
 use embedded_io::{Read, Write};
 
 #[doc(inline)]
 pub use self::reg::{ReadableRegister, Register, WritableRegister};
 
+/// Contains data types used by the driver.
+pub mod data {
+    /// Defines the behavior when motor current setting is zero (`I_HOLD=0`).
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+    #[repr(u8)]
+    pub enum StandstillMode {
+        ///Normal operation
+        #[default]
+        Normal = 0b00,
+        /// Freewheeling
+        Freewheeling = 0b01,
+        /// Coil shorted using LS drivers (Passive Braking)
+        StrongBraking = 0b10,
+        /// Coil shorted using HS drivers (Passive Braking)
+        Braking = 0b11,
+    }
+
+    impl StandstillMode {
+        #[must_use]
+        pub const fn to_driver(&self) -> u8 {
+            *self as u8
+        }
+    }
+
+    impl From<u8> for StandstillMode {
+        fn from(value: u8) -> Self {
+            match value {
+                0b00 => Self::Normal,
+                0b01 => Self::Freewheeling,
+                0b10 => Self::StrongBraking,
+                0b11 => Self::Braking,
+                _ => unreachable!("Unknown value for StandstillMode"),
+            }
+        }
+    }
+
+    impl From<StandstillMode> for u8 {
+        fn from(mode: StandstillMode) -> Self {
+            mode.to_driver()
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[cfg_attr(feature = "hash", derive(hash32_derive::Hash32))]
+    #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+    #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+    pub struct MicroStepResolution {
+        exponent: u8,
+    }
+
+    impl MicroStepResolution {
+        pub const fn new(exponent: u8) -> Self {
+            assert!(exponent <= 8, "Exponent must be between 0 and 8, inclusive");
+            Self { exponent }
+        }
+
+        /// Creates a `MicroStepResolution` from the number of microsteps (e.g., 256, 128, 64, etc.).
+        ///
+        /// # Panics
+        ///
+        /// If `microsteps` is not a power of two or is greater than 256.
+        pub const fn from_microsteps(microsteps: u32) -> Self {
+            assert!(
+                microsteps.is_power_of_two() && microsteps <= 256,
+                "Microsteps must be a power of two and less than or equal to 256"
+            );
+            let exponent = microsteps.trailing_zeros() as u8;
+            Self { exponent }
+        }
+
+        /// The exponent for the microstep resolution.
+        ///
+        /// The number of microsteps is given by `2.pow(exponent)`.
+        pub const fn exponent(&self) -> u8 {
+            self.exponent
+        }
+
+        /// The number of microsteps.
+        pub const fn number_of_microsteps(&self) -> u32 {
+            2_u32.pow(self.exponent() as u32)
+        }
+
+        /// Creates a `MicroStepResolution` from the driver value.
+        ///
+        /// Note that the driver value is `mres = 8 - exponent`.
+        pub const fn from_driver(value: u32) -> Self {
+            Self {
+                exponent: (8 - value) as u8,
+            }
+        }
+
+        /// Converts the `MicroStepResolution` to the driver value.
+        pub const fn to_driver(self) -> u32 {
+            // [256, 128, 64, 32, 16, 8, 4, 2, 1]
+            // [  8,   7,  6,  5,  4, 3, 2, 1, 0]
+            //
+            // mres = 8 - exponent
+            (8 - self.exponent) as u32
+        }
+    }
+
+    impl From<u32> for MicroStepResolution {
+        fn from(value: u32) -> Self {
+            Self::from_driver(value)
+        }
+    }
+
+    impl From<MicroStepResolution> for u32 {
+        fn from(resolution: MicroStepResolution) -> Self {
+            resolution.to_driver()
+        }
+    }
+}
+
 /// The frequency of the clock that is internal to the TMC2209.
 ///
 /// Sometimes referred to as `fclk` in the datasheet.
 pub const INTERNAL_CLOCK_HZ: f32 = 12_000_000.0;
+
+/// An error indicating that the register can not be written to.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
+pub struct ReadOnlyRegister;
+
+impl fmt::Display for ReadOnlyRegister {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Attempted to write to a read-only register")
+    }
+}
 
 /// A serial reader, for reading responses via the TMC2209's UART interface.
 ///
@@ -183,7 +314,9 @@ impl ReadRequest {
         Self::from_addr(slave_addr, R::ADDRESS)
     }
 
-    /// Should this be exposed? Doesn't protect against specifying a non-readable register.
+    /// Constructs a read request for to read the specified register of the slave with the given address.
+    ///
+    /// <div class="warning">This function does not check if the register is readable.</div>
     pub fn from_addr(slave_addr: u8, register: reg::Address) -> Self {
         const READ: u8 = 0b00000000;
         let reg_addr_rw = (register as u8 | READ) & 0x7F;
@@ -196,6 +329,12 @@ impl ReadRequest {
     /// The request as a slice of bytes, ready to be written via the serial interface.
     pub fn bytes(&self) -> &[u8] {
         &self.0[..]
+    }
+}
+
+impl From<ReadRequest> for [u8; ReadRequest::LEN_BYTES] {
+    fn from(req: ReadRequest) -> Self {
+        req.0
     }
 }
 
@@ -246,7 +385,7 @@ impl ReadResponse {
     /// `reg::Address`. See the `register` method.
     pub fn data_u32(&self) -> u32 {
         let d = self.data();
-        bytes_to_u32([d[0], d[1], d[2], d[3]])
+        u32::from_be_bytes([d[0], d[1], d[2], d[3]])
     }
 
     /// Attempt to cast the `data` field to a register bitfield of the given type.
@@ -273,6 +412,12 @@ impl ReadResponse {
     }
 }
 
+impl From<ReadResponse> for [u8; ReadResponse::LEN_BYTES] {
+    fn from(res: ReadResponse) -> Self {
+        res.0
+    }
+}
+
 impl WriteRequest {
     /// The length of the message in bytes.
     pub const LEN_BYTES: usize = 8;
@@ -282,18 +427,36 @@ impl WriteRequest {
     where
         R: reg::WritableRegister,
     {
-        Self::from_state(slave_addr, register.into())
+        Self::try_from_state(slave_addr, register.into())
+            // The trait guarantees that the adress is writable, but need
+            // to avoid generating panicking branches, so we use an infinite loop rather than
+            // unwrap.
+            .unwrap_or_else(|_| loop {})
     }
 
     /// A dynamic alternative to `new`, for when the exact register begin written to is not known
     /// at compile time.
     ///
-    /// TODO: Return a `Result` where an `Err` is returned if a non-write-able register was
-    /// specified.
-    pub fn from_state(slave_addr: u8, state: reg::State) -> Self {
+    /// # Errors
+    ///
+    /// Returns a `ReadOnlyRegister` error if the provided state corresponds to a read-only register.
+    pub fn try_from_state(slave_addr: u8, state: reg::State) -> Result<Self, ReadOnlyRegister> {
+        if !state.addr().writable() {
+            return Err(ReadOnlyRegister);
+        }
+
+        Ok(Self::from_raw_data(slave_addr, state.addr(), state))
+    }
+
+    /// Construct a write request from raw data.
+    ///
+    /// This bypasses the need to implement the `WritableRegister` trait for custom types.
+    ///
+    /// <div class="warning">This function does not check if the register is writable.</div>
+    pub fn from_raw_data(slave_addr: u8, reg_addr: reg::Address, data: impl Into<u32>) -> Self {
         const WRITE: u8 = 0b10000000;
-        let reg_addr_rw = state.addr() as u8 | WRITE;
-        let [b0, b1, b2, b3] = u32_to_bytes(state.into());
+        let reg_addr_rw = reg_addr as u8 | WRITE;
+        let [b0, b1, b2, b3] = u32::to_be_bytes(data.into());
         let mut bytes = [
             SYNC_AND_RESERVED,
             slave_addr,
@@ -312,6 +475,12 @@ impl WriteRequest {
     /// The request as a slice of bytes, ready to be written via the serial interface.
     pub fn bytes(&self) -> &[u8] {
         &self.0[..]
+    }
+}
+
+impl From<WriteRequest> for [u8; WriteRequest::LEN_BYTES] {
+    fn from(req: WriteRequest) -> Self {
+        req.0
     }
 }
 
@@ -339,7 +508,7 @@ where
 /// via UART.
 ///
 /// This simply calls `read_request` internally before writing the request via `U::bwrite_all`.
-pub fn send_read_request<R, U>(slave_addr: u8, uart_tx: &mut U) -> Result<(), U::Error>
+pub fn send_read_request<R, U>(slave_addr: u8, mut uart_tx: U) -> Result<(), U::Error>
 where
     R: reg::ReadableRegister,
     U: Write,
@@ -352,7 +521,7 @@ where
 /// send it via UART.
 ///
 /// This simply calls `write_request` internally before writing the request via `U::bwrite_all`.
-pub fn send_write_request<R, U>(slave_addr: u8, reg: R, uart_tx: &mut U) -> Result<(), U::Error>
+pub fn send_write_request<R, U>(slave_addr: u8, reg: R, mut uart_tx: U) -> Result<(), U::Error>
 where
     R: WritableRegister,
     U: Write,
@@ -372,14 +541,14 @@ where
 /// duration and return with a timeout error in the case that the duration is exceeded before a
 /// response can be read. In the meantime, consider using the `Reader` and its `read_response`
 /// method directly to avoid blocking or apply your own timeout logic.
-pub fn await_read_response<U>(uart_rx: &mut U) -> ReadResponse
+pub fn await_read_response<U>(mut uart_rx: U) -> ReadResponse
 where
     U: Read,
 {
     let mut reader = Reader::default();
     let mut buf = [0u8; 128];
     loop {
-        if let Ok(_) = uart_rx.read(&mut buf) {
+        if uart_rx.read(&mut buf).is_ok() {
             if let (_, Some(response)) = reader.read_response(&buf) {
                 return response;
             }
@@ -401,7 +570,7 @@ where
 /// duration and return with a timeout error in the case that the duration is exceeded before a
 /// response can be read. In the meantime, consider using the `Reader` and its `read_response`
 /// method directly to avoid blocking or apply your own timeout logic.
-pub fn await_read<R, U>(uart_rx: &mut U) -> Result<R, reg::UnknownAddress>
+pub fn await_read<R, U>(uart_rx: U) -> Result<R, reg::UnknownAddress>
 where
     R: ReadableRegister,
     U: Read,
@@ -428,51 +597,94 @@ pub fn crc(data: &[u8]) -> u8 {
     crc
 }
 
-// Helper function for converting a `u32` to bytes in the order they should be written in an access
-// request datagram.
-fn u32_to_bytes(u: u32) -> [u8; 4] {
-    let b0 = (u >> 24) as u8;
-    let b1 = (u >> 16) as u8;
-    let b2 = (u >> 8) as u8;
-    let b3 = u as u8;
-    [b0, b1, b2, b3]
-}
-
-// Helper function for converting the bytes of the data field of an access response datagram to a
-// `u32` value ready for conversion to a register bitfield.
-fn bytes_to_u32([b0, b1, b2, b3]: [u8; 4]) -> u32 {
-    let mut u = 0u32;
-    u |= (b0 as u32) << 24;
-    u |= (b1 as u32) << 16;
-    u |= (b2 as u32) << 8;
-    u |= b3 as u32;
-    u
-}
-
-/// Use the selected sense resistor value (in ohms) and the motor's rated current (in mA) to
-/// determine the recommended vsense and "current scale" (for IRUN) values.
+/// Calculates the `irun`/`ihold` value for the driver to output the desired motor current.
+///
+/// For this, it uses the selected sense resistor value (in ohms) and the motor's rated current
+/// (in mA) to determine the recommended vsense and "current scale" (for IRUN) values.
+///
+/// # Sense Resistor value
+///
+/// The sense resistor is used by the driver to set the motor current.
+/// The used `rsense` value depends on the hardware setup. Different breakout boards
+/// might use different sense resistor values to achieve different current ranges.
+/// From the TMC2209 datasheet, the following max rms currents are achievable with
+/// different sense resistor values:
+///
+/// | RSENSE \[Ω\] | RMS current \[A\] (VREF=2.5V, IRUN=31, vsense=0) | Fitting motor type (examples) |
+/// |--------------|--------------------------------------------------|-------------------------------|
+/// | 1.00         | 0.23                                             | 300mA motor                   |
+/// | 0.82         | 0.27                                             |                               |
+/// | 0.75         | 0.30                                             |                               |
+/// | 0.68         | 0.33                                             | 400mA motor                   |
+/// | 0.50         | 0.44                                             | 500mA motor                   |
+/// | 470m         | 0.47                                             |                               |
+/// | 390m         | 0.56                                             | 600mA motor                   |
+/// | 330m         | 0.66                                             | 700mA motor                   |
+/// | 270m         | 0.79                                             | 800mA motor                   |
+/// | 220m         | 0.96                                             | 1A motor                      |
+/// | 180m         | 1.15                                             | 1.2A motor                    |
+/// | 150m         | 1.35                                             | 1.5A motor                    |
+/// | 120m         | 1.64                                             | 1.7A motor                    |
+/// | 100m         | 1.92                                             | 2A motor                      |
+/// | 75m          | 2.4*)                                            |                               |
+/// `*)` Value exceeds upper current rating, scaling down required, e.g. by reduced VREF voltage.
+///
+/// By using a wrong `rsense` value, it is possible to destroy a stepper motor if the driver supplies more
+/// than the recommended current. It is strongly recommended to check the hardware
+/// documentation/schematic to find the correct `rsense` value to use.
+///
+/// The external sense resistors should be connected between the `BRA`/`BRB` pins of the driver and GND.
+/// The resistor value is in milliohms (e.g. 0R11 is `0.11` ohms).
+///
+/// # Returns
+///
+/// The returned tuple is `(vsense, current_scale)`, where `vsense` is what should be set in
+/// [`reg::CHOPCONF::set_vsense`] and `current_scale` is the value that should be used for
+/// [`reg::IHOLD_IRUN::set_irun`] (depending on the desired current, it might be used for `ihold`
+/// as well)
 // Code referenced from `TMCStepper.cpp` `rms_current` function in TMC demo source.
-pub fn rms_current_to_vsense_cs(rsense: f32, ma: f32) -> (bool, u8) {
-    let mut cs: u8 = (32.0 * 1.41421 * ma / 1_000.0 * (rsense + 0.02) / 0.325 - 1.0) as u8;
+pub fn rms_current_to_vsense_cs(rsense: f32, milliamps: f32) -> (bool, u8) {
+    let amps = milliamps / 1_000.0;
+
+    let mut current_scale: u8 = (32.0 * SQRT_2 * amps * (rsense + 0.02) / 0.325 - 1.0) as u8;
 
     // If Current Scale is too low, turn on high sensitivity R_sense and calculate again
-    if cs < 16 {
-        cs = (32.0 * 1.41421 * ma / 1_000.0 * (rsense + 0.02) / 0.180 - 1.0) as u8;
-        (true, cs)
+    if current_scale < 16 {
+        current_scale = (32.0 * SQRT_2 * amps * (rsense + 0.02) / 0.180 - 1.0) as u8;
+        (true, current_scale)
     } else {
-        cs = core::cmp::min(cs, 31);
-        (false, cs)
+        current_scale = core::cmp::min(current_scale, 31);
+        (false, current_scale)
     }
 }
 
 /// Use the selected sense resistor value (in ohms) and the current `vsense` setting to convert
-/// the given "current scale" value to an RMS current in mA.
+/// the given "current scale" value to an RMS current in **mA**.
 ///
 /// Useful for converting `CS_ACTUAL` to a human readable value.
+///
+/// The `CS` value is the current scale setting as set by the IHOLD and IRUN registers.
+///
+/// The `V_FS` is the full-scale voltage which changes based on the vsense control bit.
+/// If the `vsense` parameter is `true`, high sensitivity mode is used and it will calculate with
+/// a `V_FS` of 0.180V, otherwise it will use 0.325V.
+///
+/// See page 53 of the TMC2209 datasheet for more information.
+///
+/// # Analog Scaling
+///
+/// With analog scaling of `V_FS` (`I_scale_analog=1`, default), the resulting voltage `V_FS'` is
+/// calculated by `V_FS' = V_FS * V_VREF / 2.5V` where `V_VREF` is the voltage on pin `VREF` in the range
+/// 0V to `V_5VOUT/2`.
 // Code referenced from `TMCStepper.cpp` `cs2rms` function in TMC demo source.
 pub fn vsense_cs_to_rms_current(rsense: f32, vsense: bool, cs: u8) -> f32 {
     let vsense = if vsense { 0.180 } else { 0.325 };
-    (cs + 1) as f32 / 32.0 * vsense / (rsense + 0.02) / 1.41421 * 1_000.0
+
+    // CS is the current scale setting as set by the IHOLD and IRUN registers.
+    // V_FS (vsense) is the full-scale voltage as determined by vsense control bit
+    // (please refer to el)
+
+    (cs + 1) as f32 / 32.0 * vsense / (rsense + 0.02) / SQRT_2 * 1_000.0
 }
 
 /// Convert the given frequency to the closest TOFF value.
