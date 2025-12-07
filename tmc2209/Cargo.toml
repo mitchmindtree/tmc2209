@@ -1,6 +1,6 @@
 [package]
 name = "tmc2209"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["mitchmindtree <mitchell.nordine@gmail.com>"]
 description = "A driver implementation for the TMC2209 stepper motor driver by Trinamic."
 readme = "../README.md"
