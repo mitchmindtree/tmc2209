@@ -147,6 +147,8 @@ impl fmt::Display for ReadOnlyRegister {
     }
 }
 
+impl core::error::Error for ReadOnlyRegister {}
+
 /// A serial reader, for reading responses via the TMC2209's UART interface.
 ///
 /// The `Reader` is stateful and stores its progress between calls to `read`.
