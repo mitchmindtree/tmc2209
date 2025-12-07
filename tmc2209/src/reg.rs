@@ -7,6 +7,8 @@
 
 #![allow(non_camel_case_types)]
 
+use core::fmt;
+
 use crate::data::{MicroStepResolution, StandstillMode};
 
 // Register Traits
@@ -31,10 +33,26 @@ pub trait WritableRegister: Register + Into<u32> {}
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct UnknownAddress;
 
+impl fmt::Display for UnknownAddress {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown register address")
+    }
+}
+
+impl core::error::Error for UnknownAddress {}
+
 /// An error indicating an unexpected `State`.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "ufmt", derive(ufmt::derive::uDebug))]
 pub struct UnexpectedAddress;
+
+impl fmt::Display for UnexpectedAddress {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unexpected register address")
+    }
+}
+
+impl core::error::Error for UnexpectedAddress {}
 
 // Register Declarations
 // --------------------------------------------------------
