@@ -8,7 +8,7 @@ keywords = ["trinamic", "stepper", "motor", "driver"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/mitchmindtree/tmc2209.git"
 homepage = "https://github.com/mitchmindtree/tmc2209"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 bitfield = "0.19"
